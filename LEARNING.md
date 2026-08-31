@@ -20,9 +20,11 @@ _(vazio — a primeira entrada vai aqui)_
 ### Pegadinhas de ambiente, dependências ou bibliotecas
 - [2026-08-31 — O teste `settings` não roda sem display; os outros rodam](#2026-08-31--o-teste-settings-não-roda-sem-display-os-outros-rodam)
 - [2026-08-31 — `appstreamtest` valida o metainfo INSTALADO, não o do repositório](#2026-08-31--appstreamtest-valida-o-metainfo-instalado-não-o-do-repositório)
+- [2026-08-31 — O separador de dígitos do C++ quebra varredores de código](#2026-08-31--o-separador-de-dígitos-do-c-quebra-varredores-de-código)
 
 ### Decisões de arquitetura
 - [2026-08-31 — O estado da cápsula atravessa a fronteira QML↔C++ como inteiro cru](#2026-08-31--o-estado-da-cápsula-atravessa-a-fronteira-qmlc-como-inteiro-cru)
+- [2026-08-31 — O veredito de "pronto" é o código de saída do `verificar.sh`](#2026-08-31--o-veredito-de-pronto-é-o-código-de-saída-do-verificarsh)
 
 ### Abordagens que NÃO funcionaram
 _(vazio)_
@@ -115,6 +117,41 @@ conferir a origem antes de depurar um teste que você não escreveu.
 
 ---
 
+### 2026-08-31 — O separador de dígitos do C++ quebra varredores de código
+
+**Categoria:** Pegadinhas de ambiente, dependências ou bibliotecas
+
+**Problema/Contexto:** Ao escrever o check `log-limpo` do `verificar.sh` — um
+varredor que remove strings e comentários antes de procurar segredos nos
+`qCDebug` — ele voltou verde num arquivo onde o vazamento tinha sido plantado
+de propósito. O varredor não estava achando **nenhuma** das três chamadas de
+log do `OpenAiCompatibleProvider.cpp`.
+
+A causa não era a regex: era `constexpr int kDefaultTimeoutMs = 90'000;` na
+linha 20. O varredor tratava `'` como início de literal de caractere e engolia
+tudo até a próxima aspa simples — no caso, a da linha 128 (`, 'f', 1`). Cento e
+oito linhas do arquivo, incluindo os logs, sumiam antes da análise.
+
+**Solução ou insight:** `'` só abre literal de caractere quando o caractere
+anterior **não** é alfanumérico nem `_`. Com essa guarda, `90'000` é separador
+de dígito e `'f'` continua sendo literal:
+
+```python
+elif c == "'" and not (i and (txt[i - 1].isalnum() or txt[i - 1] == "_")):
+```
+
+A falha foi detectada porque o check foi testado nos **dois** sentidos: verde no
+código real e vermelho numa cópia com o defeito plantado. Só o segundo teste a
+revelou — o primeiro passava por motivo errado.
+
+**Por que importa:** Vale para qualquer ferramenta que varra este código
+(linter caseiro, contador, extrator de strings): o projeto usa separador de
+dígitos, e um varredor ingênuo falha **em silêncio**, dando verde por não ter
+lido nada. E é o argumento geral: um check que nunca foi visto ficar vermelho
+não é um check, é decoração.
+
+---
+
 ## Decisões de arquitetura
 
 ### 2026-08-31 — O estado da cápsula atravessa a fronteira QML↔C++ como inteiro cru
@@ -147,3 +184,45 @@ compilador — em todo o resto, a separação das camadas é imposta pelo linker
 (`surr_core` não linka `Qt6::DBus`, então um include errado vira erro de
 compilação). Saber onde a rede de proteção termina é o que decide onde olhar
 quando a cápsula "fica esquisita" sem nenhum log de erro.
+
+*Atualização:* essa fronteira deixou de ser não verificada. O check `qml-enum`
+do `verificar.sh` compara nome, ordem e índice dos dois lados e exige que o
+`Overlay.qml` trate todos os estados.
+
+---
+
+### 2026-08-31 — O veredito de "pronto" é o código de saída do `verificar.sh`
+
+**Categoria:** Decisões de arquitetura
+
+**Problema/Contexto:** "Analise e veja se está tudo certo" é ordem de busca, não
+teste: sempre sobra alguma coisa, e cada sessão limpa reencontra o que a sessão
+anterior já tinha considerado e aceito. Auditoria sem critério determinístico
+não termina.
+
+**Solução ou insight:** O contrato ficou em `ACEITACAO.md` e o juiz em
+`./verificar.sh` — 12 checks, sai 0 só se todos passarem. As regras que
+importam:
+
+- **Só entra check que a máquina decide sozinha.** Nada de rede: um check que
+  depende do proxy ou da Groq daria "FALHOU" sem o projeto ter defeito.
+- **Cada check tem uma resposta para "o que eu quebraria para deixá-lo
+  vermelho?"** Sem essa resposta, o check é decoração e sai da lista.
+- **O que depende de humano vai para "Só eu julgo"** e é marcado **uma vez** —
+  é a memória que a sessão limpa não tem. O ditado ponta a ponta mora ali:
+  no Wayland não dá para simular a tecla Pause.
+- **"NÃO faz parte" e "Limitações aceitas" são definitivos.** Nada listado
+  neles volta a ser relatado como achado.
+
+Três checks cobrem promessas que nenhum teste unitário alcançava: `sem-x11`
+(o ferramental de X11 falha em silêncio e é o que uma sessão futura mais tende
+a reintroduzir "para consertar a colagem"), `sem-bloqueio` (event loop aninhado
+reordena `Activated`/`Deactivated` e quebra o push-to-talk) e `log-limpo`
+(chave, token ou texto ditado num `qCDebug`).
+
+**Por que importa:** Tira o veredito da opinião e põe num `rc`. "Pronto" deixa
+de ser "ninguém acha mais nada", que é infalsificável, e passa a ser
+"`./verificar.sh` sai 0". Sem isso, cada rodada de revisão mexe em código que
+já funciona — e o risco de regressão passa a ser maior que o de defeito
+remanescente. Protocolo completo em
+`~/desenvolvimento/documentacao/PROMPT_DE_VERIFICACAO.md`.
