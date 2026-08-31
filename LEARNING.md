@@ -102,6 +102,27 @@ Depois da correção, no mesmo cenário: um `atalho registrado`, uma `sessão
 RemoteDesktop iniciada`, um `EIS conectado`, zero `Session is already
 connected`, e a bandeja passando a dizer "Reconfigurar colagem automática…".
 
+*Confirmado em boot de verdade (2026-08-31 17:50).* A corrida se repetiu com a
+mesma folga do diagnóstico — surr às 17:50:12.275, `xdg-desktop-portal` às
+17:50:12.523, 248 ms depois — e mesmo assim o log trouxe um `atalho
+registrado`, uma `sessão RemoteDesktop iniciada`, um `EIS conectado`, e zero
+`o portal reiniciou`, `falha ao conectar sinais`, `Session is already
+connected` ou `sessão de colagem indisponível`. O boot anterior, com o mesmo
+ordenamento, tinha dois de cada. Ler o rótulo da bandeja sem clicar nela:
+
+```bash
+# o :1.NN do daemon sai do RegisteredStatusNotifierItems, casando o pid
+gdbus call --session --dest :1.61 --object-path /MenuBar \
+  --method com.canonical.dbusmenu.GetLayout -- 0 -1 "['label']"
+```
+
+Cuidado com um falso alarme no log deste caminho: duas linhas de
+`qt.qpa.services: Failed to register with host portal ... "Could not register
+app ID: Connection already associated with an application ID"`. É o Qt
+tentando registrar o app-id **depois** do `Registry.Register` do `main.cpp` e
+sendo recusado — ou seja, o aviso é a prova de que o nosso registro chegou
+primeiro. Preocupante seria o contrário.
+
 **Por que importa:** O sintoma mentia nos dois sentidos — a bandeja negava uma
 permissão que estava lá e funcionando. E nada disso aparece rodando `surr` na
 mão, porque aí o portal já está de pé: é defeito exclusivo do boot, que é
