@@ -21,10 +21,12 @@ _(vazio — a primeira entrada vai aqui)_
 - [2026-08-31 — O teste `settings` não roda sem display; os outros rodam](#2026-08-31--o-teste-settings-não-roda-sem-display-os-outros-rodam)
 - [2026-08-31 — `appstreamtest` valida o metainfo INSTALADO, não o do repositório](#2026-08-31--appstreamtest-valida-o-metainfo-instalado-não-o-do-repositório)
 - [2026-08-31 — O separador de dígitos do C++ quebra varredores de código](#2026-08-31--o-separador-de-dígitos-do-c-quebra-varredores-de-código)
+- [2026-08-31 — `PIPESTATUS` é do bash; no zsh o veredito do `verificar.sh` some](#2026-08-31--pipestatus-é-do-bash-no-zsh-o-veredito-do-verificarsh-some)
 
 ### Decisões de arquitetura
 - [2026-08-31 — O estado da cápsula atravessa a fronteira QML↔C++ como inteiro cru](#2026-08-31--o-estado-da-cápsula-atravessa-a-fronteira-qmlc-como-inteiro-cru)
 - [2026-08-31 — O veredito de "pronto" é o código de saída do `verificar.sh`](#2026-08-31--o-veredito-de-pronto-é-o-código-de-saída-do-verificarsh)
+- [2026-08-31 — O projeto está CONGELADO: auditoria nova só com defeito real de uso](#2026-08-31--o-projeto-está-congelado-auditoria-nova-só-com-defeito-real-de-uso)
 
 ### Abordagens que NÃO funcionaram
 _(vazio)_
@@ -152,6 +154,47 @@ não é um check, é decoração.
 
 ---
 
+### 2026-08-31 — `PIPESTATUS` é do bash; no zsh o veredito do `verificar.sh` some
+
+**Categoria:** Pegadinhas de ambiente, dependências ou bibliotecas
+
+**Problema/Contexto:** O contrato do `ACEITACAO.md` diz que "pronto" é o
+**código de saída** do `verificar.sh`. Numa rodada de verificação, o script foi
+executado assim, para ver a saída e guardar o log ao mesmo tempo:
+
+```
+$ ./verificar.sh 2>&1 | tee rodada.txt; echo "rc=${PIPESTATUS[0]}"
+[...]
+PASSOU — 12 de 12 checks
+rc=
+```
+
+Os 12 checks passaram, mas o `rc` voltou **vazio**. O shell padrão desta máquina
+é o zsh, e no zsh o array se chama `pipestatus` (minúsculo); `PIPESTATUS` não
+existe e, sem `set -u`, expande para nada. O `$?` puro também não serviria: num
+pipe ele é o status do `tee`, que é sempre 0.
+
+**Solução ou insight:** Numa rodada de verificação, **não canalize o
+`verificar.sh`**. Redirecione para arquivo e leia o `$?` da própria chamada:
+
+```bash
+./verificar.sh > rodada.txt 2>&1
+rc=$?
+cat rodada.txt
+echo "rc=$rc"
+```
+
+O script já imprime `PASSOU`/`FALHOU` na última linha, mas o texto é
+confirmação — quem decide é o `rc`.
+
+**Por que importa:** É a única forma de a mecânica do contrato falhar em
+silêncio. Um `rc` vazio se parece com sucesso: ninguém vê `✘`, a última linha
+diz `PASSOU`, e a rodada seria dada por boa sem nunca ter lido o veredito. O
+projeto inteiro trocou "opinião" por "código de saída" justamente para não
+depender de leitura — perder esse número no pipe desfaz a troca.
+
+---
+
 ## Decisões de arquitetura
 
 ### 2026-08-31 — O estado da cápsula atravessa a fronteira QML↔C++ como inteiro cru
@@ -226,3 +269,43 @@ de ser "ninguém acha mais nada", que é infalsificável, e passa a ser
 já funciona — e o risco de regressão passa a ser maior que o de defeito
 remanescente. Protocolo completo em
 `~/desenvolvimento/documentacao/PROMPT_DE_VERIFICACAO.md`.
+
+---
+
+### 2026-08-31 — O projeto está CONGELADO: auditoria nova só com defeito real de uso
+
+**Categoria:** Decisões de arquitetura
+
+**Problema/Contexto:** O `ACEITACAO.md` termina com a linha
+
+```
+CONGELADO em 93dc02a — 2026-08-31. Só mexer com pedido explícito meu ou defeito
+real de uso.
+```
+
+Ela foi escrita depois de uma rodada de verificação em ambiente limpo (sem
+`DISPLAY`, sem `WAYLAND_DISPLAY`, sem variáveis de proxy) em que o
+`./verificar.sh` saiu 0 nos 12 checks e nenhum P0 foi reproduzido — e depois de
+o ditado ponta a ponta já estar marcado em "Só eu julgo".
+
+**Solução ou insight:** Sessão nova neste repositório **não abre auditoria por
+conta própria.** Nada de "analise e veja se está tudo certo" espontâneo, nada de
+varrer o código atrás de melhoria. O que vale:
+
+- pedido explícito do Daniel — aí faça só o que ele pediu;
+- defeito real observado no uso — aí o defeito é o ponto de partida, não uma
+  varredura;
+- mudança de código de verdade — aí rode o `./verificar.sh` **inteiro** e cole a
+  saída, sem canalizar o script — no zsh o `PIPESTATUS` não existe e o
+  veredito some (ver a entrada dele em *Pegadinhas*).
+
+Descongelar é decisão do Daniel, e apagar a linha do `ACEITACAO.md` faz parte
+dela.
+
+**Por que importa:** Este é o passo que fecha o loop que o
+`PROMPT_DE_VERIFICACAO.md` existe para matar. A partir daqui, cada rodada extra
+de revisão mexe em código que hoje passa: o risco de regressão ficou **maior**
+que o de defeito remanescente. Uma sessão limpa não tem como saber disso lendo o
+código — o código parece tão auditável quanto no primeiro dia. Por isso a nota
+mora aqui, que entra no contexto sozinho, e não só no `ACEITACAO.md`, que alguém
+precisa lembrar de abrir.

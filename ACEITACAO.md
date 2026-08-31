@@ -109,3 +109,8 @@ Nada nesta seção é defeito. Nenhuma rodada de verificação deve relatá-las.
 7. **Nenhum microfone desta máquina oferece 16 kHz mono nativo.** A captura
    acontece no formato nativo (48 kHz ou 32 kHz, estéreo) e o `PcmConverter` faz
    downmix e reamostragem. É por desenho, não por falta de acabamento.
+
+---
+
+CONGELADO em 93dc02a — 2026-08-31. Só mexer com pedido explícito meu ou defeito
+real de uso.
