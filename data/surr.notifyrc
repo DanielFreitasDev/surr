@@ -1,0 +1,14 @@
+[Global]
+IconName=br.com.cepify.Surr
+Comment=Surr
+Comment[pt_BR]=Surr
+
+[Event/notification]
+Name=Aviso
+Comment=Aviso do Surr
+Action=Popup
+
+[Event/error]
+Name=Erro
+Comment=Falha durante o ditado
+Action=Popup

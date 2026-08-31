@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>br.com.cepify.Surr</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+
+  <!-- Domínio e desenvolvedor derivados do app-id escolhido para o projeto
+       (br.com.cepify.Surr). Ajuste se o projeto ganhar outra casa. -->
+  <url type="homepage">https://cepify.com.br</url>
+
+  <developer id="br.com.cepify">
+    <name>Cepify</name>
+  </developer>
+
+  <name>Surr</name>
+  <name xml:lang="pt_BR">Surr</name>
+  <summary>Push-to-talk voice dictation for KDE Plasma</summary>
+  <summary xml:lang="pt_BR">Ditado por voz push-to-talk para o KDE Plasma</summary>
+
+  <description>
+    <p>
+      Hold a key, speak, release: the transcription appears where your cursor
+      already was. Surr stays in the system tray and uses the XDG desktop
+      portals for the global shortcut, the clipboard and the paste, so it needs
+      no elevated privileges and no X11 workarounds on Wayland.
+    </p>
+    <p xml:lang="pt_BR">
+      Segure uma tecla, fale, solte: a transcrição aparece onde o cursor já
+      estava. O Surr fica na bandeja do sistema e usa os portais XDG para o
+      atalho global, a área de transferência e a colagem, sem privilégios
+      elevados e sem gambiarras de X11 no Wayland.
+    </p>
+    <p>Transcription runs on Groq or on a self-hosted Whisper-compatible server.</p>
+    <p xml:lang="pt_BR">A transcrição roda na Groq ou num servidor Whisper próprio.</p>
+  </description>
+
+  <launchable type="desktop-id">br.com.cepify.Surr.desktop</launchable>
+  <categories>
+    <category>Utility</category>
+    <category>AudioVideo</category>
+  </categories>
+
+  <keywords>
+    <keyword>dictation</keyword>
+    <keyword>speech</keyword>
+    <keyword>whisper</keyword>
+    <keyword xml:lang="pt_BR">ditado</keyword>
+    <keyword xml:lang="pt_BR">voz</keyword>
+  </keywords>
+
+  <provides><binary>surr</binary></provides>
+  <content_rating type="oars-1.1"/>
+
+  <releases>
+    <release version="0.1.0" date="2026-08-31">
+      <description><p>First working release.</p></description>
+    </release>
+  </releases>
+</component>

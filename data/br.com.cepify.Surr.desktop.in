@@ -1,0 +1,20 @@
+[Desktop Entry]
+Type=Application
+Name=Surr
+GenericName=Ditado por voz
+GenericName[pt_BR]=Ditado por voz
+Comment=Segure a tecla de atalho, fale, e o texto aparece onde o cursor estiver
+Comment[pt_BR]=Segure a tecla de atalho, fale, e o texto aparece onde o cursor estiver
+# Caminho absoluto de propósito. O xdg-desktop-portal resolve o app_id com
+# g_desktop_app_info_new(), que devolve NULL quando o binário do Exec não está
+# no PATH — e o PATH do portal (serviço systemd de usuário) não inclui
+# ~/.local/bin. Com Exec relativo, o Registry.Register falha com
+# "App info not found" e a permissão de colagem acaba guardada sob outro app_id.
+Exec=@SURR_BIN@
+Icon=br.com.cepify.Surr
+Terminal=false
+Categories=Utility;AudioVideo;Accessibility;
+Keywords=ditado;voz;transcricao;transcrição;whisper;fala;dictation;speech;
+# Um aplicativo de bandeja não deve acender o cursor de "abrindo".
+StartupNotify=false
+X-GNOME-UsesNotifications=true

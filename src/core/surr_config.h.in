@@ -1,0 +1,6 @@
+#pragma once
+
+#define SURR_VERSION_STRING "@PROJECT_VERSION@"
+#define SURR_APP_ID "@SURR_APP_ID@"
+#define SURR_APP_NAME "surr"
+#define SURR_DISPLAY_NAME "Surr"
