@@ -50,6 +50,11 @@ O Wayland não deixa simular a tecla Pause, então nenhum script vai testar isto
       segurar Pause → falar → soltar → o texto aparece no cursor → `Ctrl+V` em
       outro lugar cola o mesmo texto. *Confirmado por mim, e registrado com
       traço completo em `docs/ACHADOS-DO-AMBIENTE.md` §9 e §10.*
+- [x] **A tela de configurações é uma janela de verdade e grava o que se muda
+      nela.** Borda e botões de fechar/minimizar/maximizar, nada encostando na
+      barra de rolagem, *Aplicar* acendendo ao mudar e apagando ao desfazer, e
+      o daemon adotando o valor novo sem reiniciar. *Confirmado por mim em
+      2026-08-31, sobre o commit `51a85af`.*
 - [ ] A cápsula não rouba foco (o cursor continua piscando no Kate durante a
       gravação) e aparece no monitor certo em setup multi-monitor.
 - [ ] A colagem funciona nos aplicativos que eu uso — inclusive um app
