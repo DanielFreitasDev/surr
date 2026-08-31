@@ -59,6 +59,9 @@ struct ApplicationController::Private {
 
     bool shuttingDown = false;
     int eisRetries = 0;
+    // O vigia do portal avisa igual quando o serviço estreia e quando ele
+    // reinicia; sem esta marca não dá para separar os dois casos.
+    bool portalSeen = false;
 };
 
 ApplicationController::ApplicationController(QObject *parent) : QObject(parent), d(new Private) {}
@@ -177,6 +180,13 @@ bool ApplicationController::start()
         // uma recusa persistente do compositor vira laço de reconexão a
         // cada segundo, que foi o que aconteceu na primeira versão.
         d->clipboard->clearSession();
+        // Fechar AQUI, e não junto da reabertura: assim este caminho nunca
+        // derruba uma sessão que o vigia do portal já tenha refeito enquanto
+        // a espera corria. Com o `close()` lá embaixo, um reinício do portal
+        // acionava os dois caminhos e eles se atropelavam — cada derrubada
+        // alimentava a próxima tentativa, e em 14 s deu quatro sessões e uma
+        // notificação falsa de "colagem indisponível".
+        d->session->close();
         if (d->eisRetries >= kMaxEisRetries) {
             qCWarning(SURR_INJECT)
                 << "EIS caiu" << d->eisRetries << "vezes; desistindo da colagem automática";
@@ -193,23 +203,45 @@ bool ApplicationController::start()
             if (d->shuttingDown || d->machine->state() != DictationStateMachine::State::Idle) {
                 return;
             }
-            d->session->close();
+            // Sem `close()`: se outro caminho já refez a sessão, a guarda do
+            // open() reconhece e este pedido vira o silêncio que deve ser.
             d->session->open(QString(), false);
         });
     });
 
     // O portal pode reiniciar; a sessão morre junto e precisa ser refeita.
+    //
+    // Cuidado: WatchForOwnerChange também dispara quando o serviço aparece
+    // pela PRIMEIRA vez, e no boot é isso que acontece — o autostart sobe o
+    // surr antes do xdg-desktop-portal (medido em 2026-08-31: surr pid 3027,
+    // portal pid 3052, no mesmo segundo). Tomar a estreia por reinício refazia
+    // as sessões por cima das que estavam nascendo. O que separa os dois casos
+    // é já ter visto o portal com dono alguma vez.
     auto *watcher = new QDBusServiceWatcher(QStringLiteral("org.freedesktop.portal.Desktop"),
                                             QDBusConnection::sessionBus(),
                                             QDBusServiceWatcher::WatchForOwnerChange, this);
     connect(watcher, &QDBusServiceWatcher::serviceOwnerChanged, this,
-            [this](const QString &, const QString &, const QString &newOwner) {
-                if (newOwner.isEmpty() || d->shuttingDown) {
+            [this](const QString &, const QString &oldOwner, const QString &newOwner) {
+                if (d->shuttingDown) {
+                    return;
+                }
+                if (newOwner.isEmpty()) {
+                    // Caiu: da próxima vez que voltar é reinício de verdade.
+                    d->portalSeen = true;
+                    return;
+                }
+                const bool firstAppearance = !d->portalSeen && oldOwner.isEmpty();
+                d->portalSeen = true;
+                if (firstAppearance) {
                     return;
                 }
                 qCInfo(SURR_PORTAL) << "o portal reiniciou; refazendo as sessões";
                 d->injector->detach();
                 d->clipboard->clearSession();
+                // Fechar antes de reabrir: a sessão morreu junto com o portal,
+                // mas deste lado `active` seguiria true e o open() lá embaixo
+                // desistiria em silêncio.
+                d->session->close();
                 d->shortcuts->bind();
                 QTimer::singleShot(kPortalWarmupMs, this,
                                    [this] { d->session->open(QString(), false); });

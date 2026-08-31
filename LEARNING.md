@@ -15,10 +15,12 @@ Medição bruta e reproduzível (comando + saída) mora em
 ## Índice
 
 ### Bugs e soluções
+- [2026-08-31 — No boot, o surr nasce antes do portal e monta as sessões em dobro](#2026-08-31--no-boot-o-surr-nasce-antes-do-portal-e-monta-as-sessões-em-dobro)
 - [2026-08-31 — A janela de configurações nunca gravava nada no disco](#2026-08-31--a-janela-de-configurações-nunca-gravava-nada-no-disco)
 - [2026-08-31 — A janela de configurações herdava o layer-shell pelo ambiente, não pelo código](#2026-08-31--a-janela-de-configurações-herdava-o-layer-shell-pelo-ambiente-não-pelo-código)
 
 ### Pegadinhas de ambiente, dependências ou bibliotecas
+- [2026-08-31 — Reinício do portal apaga o app-id registrado; do terminal ele vira `org.kde.konsole`](#2026-08-31--reinício-do-portal-apaga-o-app-id-registrado-do-terminal-ele-vira-orgkdekonsole)
 - [2026-08-31 — Sair do processo descarta a mensagem D-Bus assíncrona](#2026-08-31--sair-do-processo-descarta-a-mensagem-d-bus-assíncrona)
 - [2026-08-31 — O filho de um `ScrollView` precisa de `availableWidth`, não de `parent.width`](#2026-08-31--o-filho-de-um-scrollview-precisa-de-availablewidth-não-de-parentwidth)
 - [2026-08-31 — O teste `settings` não roda sem display; os outros rodam](#2026-08-31--o-teste-settings-não-roda-sem-display-os-outros-rodam)
@@ -27,6 +29,7 @@ Medição bruta e reproduzível (comando + saída) mora em
 - [2026-08-31 — `PIPESTATUS` é do bash; no zsh o veredito do `verificar.sh` some](#2026-08-31--pipestatus-é-do-bash-no-zsh-o-veredito-do-verificarsh-some)
 
 ### Decisões de arquitetura
+- [2026-08-31 — Quem derruba a sessão do portal tem de ser um caminho só](#2026-08-31--quem-derruba-a-sessão-do-portal-tem-de-ser-um-caminho-só)
 - [2026-08-31 — O estado da cápsula atravessa a fronteira QML↔C++ como inteiro cru](#2026-08-31--o-estado-da-cápsula-atravessa-a-fronteira-qmlc-como-inteiro-cru)
 - [2026-08-31 — O veredito de "pronto" é o código de saída do `verificar.sh`](#2026-08-31--o-veredito-de-pronto-é-o-código-de-saída-do-verificarsh)
 - [2026-08-31 — O projeto está CONGELADO: auditoria nova só com defeito real de uso](#2026-08-31--o-projeto-está-congelado-auditoria-nova-só-com-defeito-real-de-uso)
@@ -40,6 +43,71 @@ _(vazio)_
 ---
 
 ## Bugs e soluções
+
+### 2026-08-31 — No boot, o surr nasce antes do portal e monta as sessões em dobro
+
+**Categoria:** Bugs e soluções
+
+**Problema/Contexto:** Depois de um boot limpo, o menu da bandeja oferecia
+"Autorizar colagem automática…" — como se a permissão nunca tivesse sido dada —
+embora o ditado funcionasse e o texto colasse. O log do boot:
+
+```
+surr.portal: o portal reiniciou; refazendo as sessões
+surr.shortcut: falha ao conectar sinais do portal: Activated= false Deactivated= false
+surr.shortcut: atalho registrado; gatilho: "Pause"
+surr.shortcut: atalho registrado; gatilho: "Pause"
+surr.portal: sessão RemoteDesktop iniciada; teclado= true clipboard= true
+surr.portal: EIS conectado
+surr.portal: sessão RemoteDesktop iniciada; teclado= true clipboard= true
+surr.portal: RemoteDesktop: "O compositor recusou a conexão de entrada (EIS): Session is already connected"
+surr.portal: sessão de colagem indisponível: ...
+```
+
+O `QDBusServiceWatcher` do portal está em `WatchForOwnerChange`, e essa vigília
+dispara **também quando o serviço aparece pela primeira vez**. No boot é
+exatamente o que acontece: o autostart sobe o surr antes do
+xdg-desktop-portal (pid 3027 contra 3052, no mesmo segundo), e a estreia do
+`org.freedesktop.portal.Desktop` chega indistinguível de um reinício. O surr
+então refazia as sessões por cima das que estavam nascendo — duas de
+GlobalShortcuts e duas de RemoteDesktop. O compositor aceita uma conexão EIS
+por sessão, recusou a segunda com *"Session is already connected"*, e o
+`fail()` dela derrubou `active` e o rótulo da bandeja, enquanto a primeira
+seguia viva e colando.
+
+Reproduz no terminal, sem reiniciar o PC, bastando pôr o portal para nascer
+depois:
+
+```bash
+systemctl --user stop app-br.com.cepify.Surr@autostart.service
+systemctl --user stop plasma-xdg-desktop-portal-kde.service xdg-desktop-portal.service
+surr          # a primeira chamada de portal reativa o serviço, e a estreia dispara o vigia
+```
+
+**Solução ou insight:** Um conserto de cada lado.
+
+- O vigia guarda se já viu o portal com dono (`portalSeen`). Estreia — `oldOwner`
+  vazio e nunca visto antes — não é reinício e não refaz nada.
+- `RemoteDesktopSession::open()` ganhou a marca `opening`. `active` não servia de
+  guarda porque só vira true no fim da cadeia (CreateSession → SelectDevices →
+  RequestClipboard → Start → ConnectToEIS), que no boot medido levou 6 s — e os
+  dois pedidos cabiam folgados nessa janela.
+
+De brinde caiu o aviso `falha ao conectar sinais do portal`: era o segundo
+`bind()` reassinando os mesmos sinais, e o Qt devolve `false` para assinatura
+duplicada. Assinatura de sinal é match rule por nome de serviço, sobrevive ao
+reinício do portal, e portanto se faz uma vez só.
+
+Depois da correção, no mesmo cenário: um `atalho registrado`, uma `sessão
+RemoteDesktop iniciada`, um `EIS conectado`, zero `Session is already
+connected`, e a bandeja passando a dizer "Reconfigurar colagem automática…".
+
+**Por que importa:** O sintoma mentia nos dois sentidos — a bandeja negava uma
+permissão que estava lá e funcionando. E nada disso aparece rodando `surr` na
+mão, porque aí o portal já está de pé: é defeito exclusivo do boot, que é
+justamente o único caminho por onde o programa realmente sobe.
+
+---
 
 ### 2026-08-31 — A janela de configurações nunca gravava nada no disco
 
@@ -172,6 +240,54 @@ correção é preciso olhar o efeito (o protocolo), não a variável.
 ---
 
 ## Pegadinhas de ambiente, dependências ou bibliotecas
+
+### 2026-08-31 — Reinício do portal apaga o app-id registrado; do terminal ele vira `org.kde.konsole`
+
+**Categoria:** Pegadinhas de ambiente, dependências ou bibliotecas
+
+**Problema/Contexto:** Testando um reinício do portal com o surr lançado **do
+terminal**, o KDE abriu dois diálogos dizendo *"Konsole deseja registrar o
+seguinte atalho"* e *"Konsole está solicitando privilégios especiais"*, e o
+`Start` voltou recusado. O log do portal mostra a identidade trocando no meio
+do caminho:
+
+```
+xdp-kde-GlobalShortcuts:  app_id: "br.com.cepify.Surr"   (antes do reinício)
+xdp-kde-GlobalShortcuts:  app_id: "org.kde.konsole"      (depois)
+```
+
+O `Registry.Register` do `main.cpp` amarra o app-id à conexão **dentro do
+processo do portal**. O portal reiniciado não sabe mais quem somos e cai na
+dedução por cgroup — que, para um processo lançado do terminal, é o terminal.
+Sob a unidade do autostart a dedução acerta: testado o mesmo reinício com
+`systemctl --user restart app-br.com.cepify.Surr@autostart.service`, o app_id
+seguiu `br.com.cepify.Surr`, sem diálogo nenhum e restaurando em silêncio.
+
+O estrago fica gravado sob o nome errado. Para limpar:
+
+```bash
+kwriteconfig6 --file kglobalshortcutsrc --group org.kde.konsole --key dictate --delete
+
+# permissões de entrada concedidas ao app-id errado:
+dbus-send --session --print-reply --dest=org.freedesktop.impl.portal.PermissionStore \
+  /org/freedesktop/impl/portal/PermissionStore \
+  org.freedesktop.impl.portal.PermissionStore.List string:"remote-desktop"
+# ...Lookup em cada id para ver o app-id, e Delete nos que não são br.com.cepify.Surr
+```
+
+**Solução ou insight:** Teste de portal se faz com o daemon na unidade do
+autostart, não com `surr` solto no terminal. O terminal serve para o cenário de
+boot (portal parado, surr antes) — ali nada reinicia no meio e o app-id
+registrado na partida vale a sessão inteira.
+
+**Por que importa:** Já tinha acontecido de a permissão parar em
+`org.kde.konsole` por rodar de `build/` sem instalar (está no `CLAUDE.md`). O
+mecanismo agora é outro e o binário instalado não protege: basta o portal
+reiniciar. O efeito é o mesmo — `kglobalshortcutsrc` e o armazém de permissões
+guardam concessões sob o nome de quem lançou o processo, e ninguém percebe até
+um diálogo aparecer com o nome errado.
+
+---
 
 ### 2026-08-31 — Sair do processo descarta a mensagem D-Bus assíncrona
 
@@ -416,6 +532,43 @@ depender de leitura — perder esse número no pipe desfaz a troca.
 ---
 
 ## Decisões de arquitetura
+
+### 2026-08-31 — Quem derruba a sessão do portal tem de ser um caminho só
+
+**Categoria:** Decisões de arquitetura
+
+**Problema/Contexto:** Há dois detectores para a morte da sessão de colagem: o
+vigia do portal (reiniciou → refaz) e o `EisInjector::disconnected` (o descritor
+morreu → refaz, com espera de 2 s, 4 s, 8 s e teto de três tentativas). Enquanto
+o vigia desistia sozinho — o `open()` dele voltava cedo porque `active` ficava
+preso em true na sessão morta —, os dois nunca se encontravam. Ao consertar isso
+(o vigia passou a fechar antes de reabrir), eles começaram a se atropelar: o
+vigia refazia a sessão em 1,5 s, a tentativa do EIS acordava em 2 s e **fechava
+a sessão boa** para abrir outra, e cada derrubada alimentava a tentativa
+seguinte. Um reinício do portal virou quatro sessões em 14 s, terminando em
+
+```
+surr.inject: EIS caiu 3 vezes; desistindo da colagem automática
+```
+
+— notificação de erro na cara do usuário, com a colagem voltando a funcionar no
+segundo seguinte.
+
+**Solução ou insight:** O `close()` saiu da tentativa adiada e foi para o
+instante da desconexão, que é onde a informação existe: o descritor morreu, logo
+a sessão morreu. A parte adiada virou só `open()`, e a guarda `active || opening`
+decide — se outro caminho já refez, o pedido vira o silêncio que deve ser.
+A regra: **derrubar tem um dono só; reabrir pode ter vários, desde que todos
+passem pela mesma guarda.**
+
+**Por que importa:** É o preço de ter dois detectores para a mesma falha, e o
+conflito não aparece nem no caminho feliz nem no de erro — só reiniciando o
+portal com o daemon vivo e **contando as sessões** no log. Dois consertos
+corretos, cada um defensável sozinho, produziram um defeito novo; e ele se
+manifesta como erro visível ao usuário justamente quando tudo, no fundo,
+funcionou.
+
+---
 
 ### 2026-08-31 — O estado da cápsula atravessa a fronteira QML↔C++ como inteiro cru
 

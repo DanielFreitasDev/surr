@@ -24,6 +24,9 @@ struct GlobalShortcutManager::Private {
     QString triggerDescription;
     bool bound = false;
     bool keyDown = false;
+    // Assinatura de sinal do barramento é match rule por nome de serviço:
+    // sobrevive ao reinício do portal e só se faz uma vez.
+    bool signalsConnected = false;
 };
 
 GlobalShortcutManager::GlobalShortcutManager(QObject *parent) : QObject(parent), d(new Private) {}
@@ -52,22 +55,31 @@ void GlobalShortcutManager::createSession()
     auto bus = QDBusConnection::sessionBus();
 
     // Assinar antes de a sessão existir; o filtro por handle é feito nos slots.
-    const bool okActivated = bus.connect(
-        QString::fromLatin1(kService), QString::fromLatin1(kObject),
-        QString::fromLatin1(kIface), QStringLiteral("Activated"), this,
-        SLOT(onActivated(QDBusObjectPath, QString, qulonglong, QVariantMap)));
-    const bool okDeactivated = bus.connect(
-        QString::fromLatin1(kService), QString::fromLatin1(kObject),
-        QString::fromLatin1(kIface), QStringLiteral("Deactivated"), this,
-        SLOT(onDeactivated(QDBusObjectPath, QString, qulonglong, QVariantMap)));
-    bus.connect(QString::fromLatin1(kService), QString::fromLatin1(kObject),
-                QString::fromLatin1(kIface), QStringLiteral("ShortcutsChanged"), this,
-                SLOT(onShortcutsChanged(QDBusObjectPath, surr::PortalShortcutList)));
+    //
+    // E uma vez só: o Qt recusa assinatura duplicada devolvendo `false`, então
+    // um segundo bind() imprimia um aviso de falha que não era falha nenhuma —
+    // foi o que apareceu no log do boot de 2026-08-31, ao lado do reinício
+    // falso do portal.
+    if (!d->signalsConnected) {
+        const bool okActivated = bus.connect(
+            QString::fromLatin1(kService), QString::fromLatin1(kObject),
+            QString::fromLatin1(kIface), QStringLiteral("Activated"), this,
+            SLOT(onActivated(QDBusObjectPath, QString, qulonglong, QVariantMap)));
+        const bool okDeactivated = bus.connect(
+            QString::fromLatin1(kService), QString::fromLatin1(kObject),
+            QString::fromLatin1(kIface), QStringLiteral("Deactivated"), this,
+            SLOT(onDeactivated(QDBusObjectPath, QString, qulonglong, QVariantMap)));
+        bus.connect(QString::fromLatin1(kService), QString::fromLatin1(kObject),
+                    QString::fromLatin1(kIface), QStringLiteral("ShortcutsChanged"), this,
+                    SLOT(onShortcutsChanged(QDBusObjectPath, surr::PortalShortcutList)));
 
-    if (!okActivated || !okDeactivated) {
-        qCWarning(SURR_SHORTCUT)
-            << "falha ao conectar sinais do portal: Activated=" << okActivated
-            << "Deactivated=" << okDeactivated;
+        if (!okActivated || !okDeactivated) {
+            qCWarning(SURR_SHORTCUT)
+                << "falha ao conectar sinais do portal: Activated=" << okActivated
+                << "Deactivated=" << okDeactivated;
+        } else {
+            d->signalsConnected = true;
+        }
     }
 
     QVariantMap options;

@@ -34,6 +34,10 @@ struct RemoteDesktopSession::Private {
     bool keyboard = false;
     bool clipboard = false;
     bool active = false;
+    // `active` só vira true no fim da cadeia, quando o EIS conecta; até lá um
+    // segundo open() passaria pela guarda e montaria uma sessão paralela — ver
+    // o comentário do open().
+    bool opening = false;
 };
 
 RemoteDesktopSession::RemoteDesktopSession(QObject *parent) : QObject(parent), d(new Private) {}
@@ -54,15 +58,24 @@ QString RemoteDesktopSession::sessionHandle() const { return d->sessionHandle; }
 void RemoteDesktopSession::fail(const QString &message, bool userCancelled)
 {
     qCWarning(SURR_PORTAL) << "RemoteDesktop:" << message;
+    d->opening = false;
     d->active = false;
     Q_EMIT failed(message, userCancelled);
 }
 
 void RemoteDesktopSession::open(const QString &parentWindow, bool interactive)
 {
-    if (d->active) {
+    // Duas fontes pedem a sessão na partida: o aquecimento de quem abriu a
+    // carteira e o vigia do portal. `active` sozinho não desempata — ele só
+    // vira true depois de CreateSession → SelectDevices → RequestClipboard →
+    // Start → ConnectToEIS, que no boot de 2026-08-31 levou 6 s. Nesse
+    // intervalo os dois pedidos passaram, e o compositor recusou o EIS do
+    // segundo com "Session is already connected", derrubando a permissão que
+    // o primeiro tinha acabado de conquistar.
+    if (d->active || d->opening) {
         return;
     }
+    d->opening = true;
     d->parentWindow = parentWindow;
     d->interactive = interactive;
     d->keyboard = false;
@@ -220,6 +233,7 @@ void RemoteDesktopSession::connectToEis()
             return;
         }
 
+        d->opening = false;
         d->active = true;
         qCInfo(SURR_PORTAL) << "EIS conectado";
         Q_EMIT ready(owned);
@@ -230,6 +244,7 @@ void RemoteDesktopSession::onSessionClosed(const QVariantMap &)
 {
     qCInfo(SURR_PORTAL) << "sessão RemoteDesktop encerrada pelo portal";
     d->sessionHandle.clear();
+    d->opening = false;
     d->active = false;
     d->keyboard = false;
     d->clipboard = false;
@@ -247,6 +262,7 @@ void RemoteDesktopSession::close()
     QDBusConnection::sessionBus().asyncCall(msg);
 
     d->sessionHandle.clear();
+    d->opening = false;
     d->active = false;
     d->keyboard = false;
     d->clipboard = false;
