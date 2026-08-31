@@ -123,4 +123,10 @@ void Settings::setAutostart(bool enabled)
 
 void Settings::save() { d->config.sync(); }
 
+void Settings::reload()
+{
+    d->config.reparseConfiguration();
+    Q_EMIT changed();
+}
+
 } // namespace surr

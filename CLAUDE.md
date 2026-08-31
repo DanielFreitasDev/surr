@@ -130,6 +130,24 @@ o daemon tem só a cápsula e `--settings` roda separado, conversando por D-Bus
 em `/Control` (`br.com.cepify.Surr.Control`). Caminho próprio porque
 `/MainApplication` já pertence ao `KDBusService`.
 
+Só que a separação **não basta sozinha**: `useLayerShell()` é um
+`qputenv("QT_WAYLAND_SHELL_INTEGRATION", "layer-shell")`, e o
+`QProcess::startDetached` repassa o ambiente ao filho. Por isso o `main.cpp`
+faz `qunsetenv` dessa variável no modo `--settings`. Antes de confiar que um
+processo separado isola alguma coisa, verifique se a biblioteca não trabalha
+por variável de ambiente.
+
+**Configuração não atravessa os dois processos sozinha.** A janela de
+configurações trabalha num rascunho em memória; só o Aplicar/OK grava
+(`KConfig::sync()`, via `Settings::save()`) e chama `/Control.reloadSettings`,
+que faz `reparseConfiguration()` no daemon e repassa os valores em
+`applyLiveSettings()`. Sem esse aviso o daemon seguiria com o que leu na
+partida — o KConfig não percebe que outro processo gravou. Pelo mesmo motivo o
+`shutdown()` do daemon **não** chama `save()`: despejaria a cópia velha por
+cima do que a janela acabou de gravar. **Valor novo que alguma peça guarde em
+cópia entra no `applyLiveSettings()`** — senão ele só passa a valer no próximo
+boot, e isso não dá erro nenhum.
+
 **A máquina de estados não conhece áudio, rede nem UI.** Mudança de política
 (o que conta como ditado válido, o que acontece num erro) vai nela; o
 `ApplicationController` só liga peças e reporta. É o que torna as corridas de
@@ -151,7 +169,7 @@ perde uma transcrição.
 
 | O quê | Onde |
 |---|---|
-| Configuração | `~/.config/surrrc` (KConfig) |
+| Configuração | `~/.config/surrrc` (KConfig) — gravado só no Aplicar/OK |
 | Chaves de API e `restore_token` | KWallet, pasta `surr` (refúgio `secrets.json` 0600) |
 | Autostart | `~/.config/autostart/br.com.cepify.Surr.desktop` (cópia do instalado) |
 | WAV do ciclo | `$XDG_RUNTIME_DIR/surr/ditado-<runId>.wav` |

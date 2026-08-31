@@ -17,6 +17,7 @@
 #include <QIcon>
 #include <QRandomGenerator>
 #include <QTimer>
+#include <QtEnvironmentVariables>
 
 #if __has_include(<LayerShellQt/Shell>)
 #include <LayerShellQt/Shell>
@@ -70,6 +71,21 @@ int main(int argc, char **argv)
         } else if (qstrcmp(argv[i], "--preview") == 0) {
             previewMode = true;
         }
+    }
+
+    // useLayerShell() não é chamada de API: é um
+    // qputenv("QT_WAYLAND_SHELL_INTEGRATION", "layer-shell"). A variável passa
+    // a valer para o ambiente do daemon, e o QProcess::startDetached de
+    // openSettings() repassa esse ambiente ao filho — que, mesmo pulando a
+    // chamada abaixo, nascia como superfície de layer-shell: tela cheia, sem
+    // borda e sem botões de fechar. Medido em /proc/<pid>/environ do processo
+    // --settings lançado pela bandeja; rodar `surr --settings` direto do
+    // terminal não reproduz, porque ali a variável não existe.
+    //
+    // Fica fora do #ifdef de propósito: a variável pode chegar pelo ambiente
+    // mesmo num build sem LayerShellQt.
+    if (settingsMode) {
+        qunsetenv("QT_WAYLAND_SHELL_INTEGRATION");
     }
 
 #ifdef SURR_HAS_LAYERSHELL

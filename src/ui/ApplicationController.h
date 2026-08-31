@@ -31,10 +31,21 @@ public Q_SLOTS:
     Q_SCRIPTABLE void authorizePaste();
     Q_SCRIPTABLE void configureShortcut();
     Q_SCRIPTABLE QString triggerDescription() const;
+    /// Relê o `surrrc` e repassa os valores às peças já montadas.
+    ///
+    /// Chamado pelo processo `--settings` quando o usuário clica em Aplicar
+    /// ou OK. Sem isto a mudança só valeria no próximo boot: o KConfig deste
+    /// processo não percebe que outro gravou o arquivo.
+    Q_SCRIPTABLE void reloadSettings();
 
 private:
     /// Remove o WAV temporário do ciclo, salvo em modo de depuração.
     void cleanupAudio();
+    /// Empurra para as peças os valores que elas guardam em cópia. Usado na
+    /// partida e no reloadSettings, para os dois caminhos não divergirem.
+    void applyLiveSettings();
+    /// Escolhe o provider ativo pelo que está configurado e atualiza a bandeja.
+    void selectActiveProvider();
 
     struct Private;
     Private *d;

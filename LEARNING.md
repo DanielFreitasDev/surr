@@ -15,9 +15,12 @@ Medição bruta e reproduzível (comando + saída) mora em
 ## Índice
 
 ### Bugs e soluções
-_(vazio — a primeira entrada vai aqui)_
+- [2026-08-31 — A janela de configurações nunca gravava nada no disco](#2026-08-31--a-janela-de-configurações-nunca-gravava-nada-no-disco)
+- [2026-08-31 — A janela de configurações herdava o layer-shell pelo ambiente, não pelo código](#2026-08-31--a-janela-de-configurações-herdava-o-layer-shell-pelo-ambiente-não-pelo-código)
 
 ### Pegadinhas de ambiente, dependências ou bibliotecas
+- [2026-08-31 — Sair do processo descarta a mensagem D-Bus assíncrona](#2026-08-31--sair-do-processo-descarta-a-mensagem-d-bus-assíncrona)
+- [2026-08-31 — O filho de um `ScrollView` precisa de `availableWidth`, não de `parent.width`](#2026-08-31--o-filho-de-um-scrollview-precisa-de-availablewidth-não-de-parentwidth)
 - [2026-08-31 — O teste `settings` não roda sem display; os outros rodam](#2026-08-31--o-teste-settings-não-roda-sem-display-os-outros-rodam)
 - [2026-08-31 — `appstreamtest` valida o metainfo INSTALADO, não o do repositório](#2026-08-31--appstreamtest-valida-o-metainfo-instalado-não-o-do-repositório)
 - [2026-08-31 — O separador de dígitos do C++ quebra varredores de código](#2026-08-31--o-separador-de-dígitos-do-c-quebra-varredores-de-código)
@@ -38,11 +41,228 @@ _(vazio)_
 
 ## Bugs e soluções
 
-_Nenhuma entrada ainda._
+### 2026-08-31 — A janela de configurações nunca gravava nada no disco
+
+**Categoria:** Bugs e soluções
+
+**Problema/Contexto:** A tela não tinha botão de salvar, o que sugeria
+"aplica na hora". Não aplicava nunca. Nada do que fosse mudado ali chegava ao
+`surrrc` — e o sintoma mais claro é que, depois de meses de uso,
+`~/.config/surrrc` **não existia**.
+
+Três coisas empilhadas:
+
+1. `SettingsBackend::save()` existia, era `Q_INVOKABLE`, e **nenhum lugar do
+   QML o chamava** (`grep -o "backend\.[A-Za-z_]*"` listava 25 chamadas; `save`
+   não estava entre elas).
+2. Sobraria o `KConfig` sincronizar no destrutor, mas `main.cpp` fazia
+   `new surr::SettingsWindow` sem pai e nunca deletava — nenhum destrutor
+   rodava.
+3. E mesmo que gravasse, o daemon não veria: ele tem o `KConfig` dele, lido na
+   partida, e não havia `reparseConfiguration` nem `KConfigWatcher` no projeto.
+   Pior, o `shutdown()` dele chamava `save()` com a cópia velha em memória —
+   despejaria o valor antigo por cima do novo.
+
+Medido com o binário real, num `XDG_CONFIG_HOME` limpo e uma sonda temporária
+que mudava um valor pelo caminho completo (QML → backend → `Settings` →
+`KConfig`) e saía como se a janela fosse fechada:
+
+```
+qml: SONDA: minimumHoldMs agora e 999 - saindo
+>>> surrrc NAO EXISTE — a alteracao SE PERDEU
+```
+
+**Solução ou insight:** Modelo OK/Aplicar/Cancelar, como os apps do Plasma.
+O `SettingsBackend` ganhou um rascunho (`Draft draft` + `Draft stored`): o QML
+escreve no rascunho e só o Aplicar empurra para o `Settings`, chama `save()`
+(que é o `sync()` — sem ele o `writeEntry` fica só em memória) e avisa o daemon
+por D-Bus em `/Control.reloadSettings`, que faz `reparseConfiguration` e
+repassa os valores às peças. O `save()` do `shutdown()` saiu.
+
+Duas decisões que parecem detalhe e não são:
+
+- **"Sujo" é comparação (`draft != stored`), nunca uma marca de "mexeu".**
+  É o que faz o botão Aplicar *apagar sozinho* quando o valor volta ao
+  original. Sem isso ele deixa de servir para o que o usuário realmente usa:
+  esbarrar num controle e enxergar que esbarrou.
+- **O Aplicar empurra só os campos que mudaram.** `setAutostart` escreve (ou
+  apaga) o `.desktop` do autostart; reescrever esse arquivo por causa de outra
+  opção da mesma tela seria efeito colateral gratuito.
+
+As chaves de API ficam fora do rascunho de propósito: têm botão próprio, vão
+para o KWallet na hora, e o Cancelar não as desfaz.
+
+**Por que importa:** O bug era invisível pelos dois lados. Pela interface,
+"não tem botão de salvar" se lê como "salva sozinho". Pelo código, existe um
+`save()` com cara de que alguém o chama. E o teste que pegaria isso não é ler o
+código: é abrir, mudar, fechar e **olhar o arquivo**. Vale a regra: onde não
+houver botão de salvar, verifique o disco, não a intenção do código.
+
+---
+
+### 2026-08-31 — A janela de configurações herdava o layer-shell pelo ambiente, não pelo código
+
+**Categoria:** Bugs e soluções
+
+**Problema/Contexto:** Aberta pela bandeja, a janela de configurações vinha em
+tela cheia, sem borda e sem os botões de fechar/minimizar/maximizar. O código
+parecia correto e continha a defesa explícita: `main.cpp` decide o modo antes
+de criar o `QApplication` e só chama `LayerShellQt::Shell::useLayerShell()`
+quando **não** é `--settings`; `ApplicationController::openSettings()` ainda
+lança um processo separado, com o comentário dizendo exatamente por quê. Nada
+disso adiantava.
+
+A causa é que `useLayerShell()` **não é uma chamada de API** — é um
+`qputenv("QT_WAYLAND_SHELL_INTEGRATION", "layer-shell")`:
+
+```
+$ strings /usr/lib/x86_64-linux-gnu/libLayerShellQtInterface.so.6 | grep SHELL_INTEGRATION
+QT_WAYLAND_SHELL_INTEGRATION
+```
+
+Ou seja, ela muda o **ambiente do daemon**, e o `QProcess::startDetached`
+repassa esse ambiente ao filho. O processo de configurações pulava a chamada e
+mesmo assim nascia com a variável posta:
+
+```
+$ tr '\0' '\n' < /proc/$(pgrep -x surr | tail -1)/environ | grep SHELL_INTEGRATION
+QT_WAYLAND_SHELL_INTEGRATION=layer-shell
+```
+
+Rodar `surr --settings` direto do terminal **não reproduz** — ali a variável
+não existe. Por isso o defeito só aparece no caminho real de uso.
+
+**Solução ou insight:** `qunsetenv("QT_WAYLAND_SHELL_INTEGRATION")` no
+`main.cpp`, no modo `--settings`, antes do `QApplication`. Fica fora do
+`#ifdef SURR_HAS_LAYERSHELL` de propósito: a variável pode chegar pelo
+ambiente mesmo num build sem LayerShellQt. Corrigir no lado que **recebe**
+cobre todos os caminhos de lançamento; corrigir só no `startDetached` cobriria
+um.
+
+Verificação — o veredito é o protocolo Wayland, não a aparência:
+
+```bash
+env QT_WAYLAND_SHELL_INTEGRATION=layer-shell WAYLAND_DEBUG=1 \
+    timeout 6 surr --settings 2>&1 |
+  grep -oE 'zwlr_layer_surface_v1|xdg_toplevel' | sort | uniq -c
+```
+
+Antes: 9 × `zwlr_layer_surface_v1`. Depois: zero — só `xdg_toplevel`, que é
+janela normal decorada. Cuidado ao ler: `zwlr_layer_shell_v1` continua
+aparecendo 2 vezes porque é o `wl_registry.global` anunciando o protocolo;
+quem denuncia a superfície criada é `zwlr_layer_surface_v1`.
+
+Nota de lado: o compilador avisa que `useLayerShell()` está **deprecado desde
+o LayerShellQt 6.6** — *"Calling useLayerShell is not needed since Qt 6.5"*.
+Deixar de chamá-la eliminaria a variável de ambiente na origem, mas isso muda
+como a cápsula obtém a superfície dela e não foi testado ponta a ponta.
+
+**Por que importa:** É o modo de falha que nenhuma leitura de código pega. A
+separação em dois processos existe justamente para isolar o layer-shell, o
+comentário no `openSettings()` explica isso corretamente, e ainda assim o
+isolamento vazava — porque o mecanismo real da biblioteca é ambiente herdado,
+não estado de processo. Regra geral para este projeto: **antes de confiar que
+um `QProcess` isola alguma coisa, verifique se a biblioteca não trabalha por
+variável de ambiente** — `execve` copia o ambiente do pai, e nenhuma barreira
+de código intercepta isso. E `/proc/<pid>/environ` mostra o ambiente do
+`exec`, então ele nunca reflete um `qunsetenv` posterior: para conferir a
+correção é preciso olhar o efeito (o protocolo), não a variável.
+
 
 ---
 
 ## Pegadinhas de ambiente, dependências ou bibliotecas
+
+### 2026-08-31 — Sair do processo descarta a mensagem D-Bus assíncrona
+
+**Categoria:** Pegadinhas de ambiente, dependências ou bibliotecas
+
+**Problema/Contexto:** Ao ligar o Aplicar/OK das configurações ao
+`reloadSettings` do daemon, o botão OK gravava o arquivo e **o daemon não
+recebia nada**. O código era o mesmo padrão do `configureShortcut`, que
+funciona:
+
+```cpp
+QDBusConnection::sessionBus().call(message, QDBus::NoBlock);
+```
+
+A diferença não estava na chamada, e sim no que vinha depois: o OK encerra o
+processo em seguida. `NoBlock` (e o `asyncCall`) só enfileiram a mensagem; quem
+a escreve no socket é a volta ao event loop. Saindo na mesma linha, ela morre
+com o processo. O `configureShortcut` nunca sofreu disso porque a janela
+continua aberta.
+
+Medido, com o daemon logando cada reload: botão Aplicar (janela segue aberta) →
+o daemon vê o valor novo; botão OK (`apply()` + saída imediata) → nenhum reload
+no log, mas o `surrrc` gravado. Grave só metade, e o sintoma vira "às vezes
+pega, às vezes não".
+
+**Solução ou insight:** Quando a saída vem logo depois, use `asyncCall` e espere
+o `QDBusPendingCallWatcher` antes de sair — não é event loop aninhado, é o loop
+normal continuando a girar até o sinal chegar. Com um `QTimer::singleShot` de
+rede, para a janela não ficar presa se nada voltar.
+
+No caminho oposto, quando a janela **fica** aberta, o disparo e esquecer basta.
+
+Junto veio outra: `Qt.quit()` no QML **não fecha** uma `QQuickView`. Ele emite
+`QQmlEngine::quit`, e a ligação com o `QCoreApplication` só é automática no
+`QQmlApplicationEngine`. Com a `QQuickView` é preciso conectar à mão:
+
+```cpp
+connect(m_view->engine(), &QQmlEngine::quit, qApp, &QCoreApplication::quit);
+```
+
+**Por que importa:** As duas falham em silêncio e do mesmo jeito — o clique
+"funciona", nada aparece no log, e o efeito simplesmente não acontece. E as
+duas só se manifestam no botão que fecha a janela, que é justamente o caminho
+que ninguém testa por último.
+
+---
+
+### 2026-08-31 — O filho de um `ScrollView` precisa de `availableWidth`, não de `parent.width`
+
+**Categoria:** Pegadinhas de ambiente, dependências ou bibliotecas
+
+**Problema/Contexto:** Na janela de configurações, os botões da borda direita
+(*Apagar*, *Alterar atalho...*, *Autorizar...*) encostavam na barra de
+rolagem, apesar de o layout ter `Layout.rightMargin: root.pad` (18px) em todos
+os itens. A margem existia; o que faltava era espaço para ela.
+
+O `Settings.qml` fazia `ColumnLayout { width: root.width }` dentro do
+`ScrollView`. Medido em execução, com a janela no tamanho padrão:
+
+```
+width= 640   availableWidth= 619   rightPadding= 21   vbarW= 21
+```
+
+O `ScrollView` põe a largura da barra vertical no próprio `rightPadding`, e é
+isso que separa `width` de `availableWidth`. Amarrando a coluna a `root.width`
+ela ia até 640, os últimos 21px ficavam debaixo da barra, e a folga real na
+direita virava 18 − 21 = **−3px**.
+
+**Solução ou insight:** Dentro de um `ScrollView`, o filho se amarra a
+`availableWidth`, nunca à largura da janela:
+
+```qml
+ScrollView {
+    id: scroller
+    contentWidth: availableWidth
+    ColumnLayout { width: scroller.availableWidth }
+}
+```
+
+Note que `contentWidth: availableWidth` **já estava lá** e não resolvia: ele
+governa o `Flickable`, não a largura do item filho — o QQC2 não amarra o filho
+sozinho. São duas ligações distintas, e é fácil ver a primeira e achar que a
+segunda veio junto.
+
+**Por que importa:** O sintoma parece "faltou margem" e leva a mexer no
+`pad` — que só piora, porque o problema é a coluna larga demais, não a margem
+estreita demais. E a medição é o jeito de decidir: se `rightPadding` for igual
+à largura da barra, o desconto existe e o conserto é trocar a ligação; se for
+0, o estilo não reserva espaço e seria preciso descontar a barra à mão.
+
+---
 
 ### 2026-08-31 — O teste `settings` não roda sem display; os outros rodam
 

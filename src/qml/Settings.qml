@@ -13,13 +13,23 @@ Rectangle {
     property int pad: 18
 
     ScrollView {
-        anchors.fill: parent
+        id: scroller
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
+        anchors.bottom: statusArea.top
         anchors.margins: 0
         contentWidth: availableWidth
         clip: true
 
         ColumnLayout {
-            width: root.width
+            // availableWidth desconta a barra de rolagem; root.width não.
+            // Medido nesta janela: width=640, availableWidth=619,
+            // rightPadding=21 — a largura da barra. Com root.width a coluna
+            // ia até 640 e os 18px de root.pad ficavam POR BAIXO da barra
+            // (sobra real de −3px), então Apagar, Alterar atalho... e
+            // Autorizar... encostavam nela.
+            width: scroller.availableWidth
             spacing: 0
 
             // ---- Transcrição -------------------------------------------
@@ -299,10 +309,13 @@ Rectangle {
 
     // Barra de status: uma linha, sempre visível, sem diálogo modal.
     Rectangle {
+        id: statusArea
         anchors.left: parent.left
         anchors.right: parent.right
-        anchors.bottom: parent.bottom
-        height: statusLabel.implicitHeight + 20
+        anchors.bottom: footer.top
+        // Altura zero quando escondida: com a barra ancorada ao rodapé, uma
+        // altura residual viraria uma faixa vazia acima dos botões.
+        height: visible ? statusLabel.implicitHeight + 20 : 0
         visible: backend.statusMessage !== ""
         color: Qt.rgba(palette.highlight.r, palette.highlight.g, palette.highlight.b, 0.14)
 
@@ -312,6 +325,71 @@ Rectangle {
             anchors.margins: 10
             wrapMode: Text.Wrap
             text: backend.statusMessage
+        }
+    }
+
+    /*
+     * Rodapé fixo: OK | Aplicar | Cancelar.
+     *
+     * A ordem é a do estilo da plataforma, medida nesta máquina com um
+     * QDialogButtonBox(Ok|Apply|Cancel) — o Breeze devolve OK, Aplicar,
+     * Cancelar da esquerda para a direita. O usuário acha o botão pela
+     * posição, então divergir disso custa mais do que parece.
+     *
+     * Nada nesta tela vai para o disco antes do Aplicar ou do OK, então
+     * Cancelar (e o X da janela) só precisa fechar: não há o que desfazer.
+     */
+    Rectangle {
+        id: footer
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        height: footerRow.implicitHeight + 24
+        color: palette.window
+
+        Rectangle {
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            height: 1
+            color: Qt.rgba(palette.text.r, palette.text.g, palette.text.b, 0.12)
+        }
+
+        RowLayout {
+            id: footerRow
+            anchors.fill: parent
+            anchors.topMargin: 12
+            anchors.bottomMargin: 12
+            anchors.leftMargin: root.pad
+            anchors.rightMargin: root.pad
+            spacing: 8
+
+            Label {
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                opacity: 0.75
+                font.pixelSize: 11
+                text: backend.dirty ? "Há alterações não aplicadas." : ""
+            }
+
+            Button {
+                text: "OK"
+                // applyAndClose, não apply + Qt.quit: sair na mesma linha
+                // descarta o aviso ao daemon antes de ele ir para o socket.
+                onClicked: backend.applyAndClose()
+            }
+            Button {
+                text: "Aplicar"
+                // Acende só quando o rascunho difere do gravado, e apaga
+                // sozinho se o valor voltar ao que era: é o que denuncia um
+                // controle esbarrado sem querer.
+                enabled: backend.dirty
+                onClicked: backend.apply()
+            }
+            Button {
+                text: "Cancelar"
+                onClicked: Qt.quit()
+            }
         }
     }
 

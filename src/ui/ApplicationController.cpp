@@ -76,13 +76,11 @@ bool ApplicationController::start()
     d->nam = new QNetworkAccessManager(this);
 
     d->machine = new DictationStateMachine(this);
-    d->machine->setMinimumHoldMs(d->settings->minimumHoldMs());
     // Sem debounce: o auto-repeat não chega pelo portal (medido), e 60 ms de
     // atraso no encerramento não compram nada aqui.
     d->machine->setReleaseDebounceMs(0);
 
     d->recorder = new AudioRecorder(this);
-    d->recorder->setDeviceId(d->settings->inputDeviceId());
 
     d->overlay = new OverlayController(this);
     if (!d->overlay->initialize()) {
@@ -90,20 +88,18 @@ bool ApplicationController::start()
     }
 
     d->tray = new TrayIcon(this);
-    d->tray->setAutostartEnabled(d->settings->autostart());
 
     d->groq = new GroqProvider(d->nam, this);
     d->cepify = new CepifyProvider(d->nam, this);
-    d->cepify->setBaseUrl(d->settings->cepifyBaseUrl());
-    d->cepify->setHotwords(d->settings->hotwords());
 
     d->session = new RemoteDesktopSession(this);
     d->clipboard = new ClipboardManager(this);
     d->injector = new EisInjector(this);
     d->delivery = new DeliveryCoordinator(d->clipboard, d->injector, this);
-    d->delivery->setAutoPaste(d->settings->autoPaste());
-    d->delivery->setTerminalMode(d->settings->terminalPasteMode());
-    d->delivery->setPasteDelayMs(d->settings->pasteDelayMs());
+
+    // Todas as peças que guardam cópia de configuração já existem: um ponto
+    // só para alimentá-las, o mesmo que o reloadSettings usa depois.
+    applyLiveSettings();
 
     // ---- Credenciais -------------------------------------------------
     connect(d->secrets, &SecretStore::readyChanged, this, [this](bool) {
@@ -119,12 +115,7 @@ bool ApplicationController::start()
         d->groq->setApiKey(d->secrets->groqApiKey());
         d->cepify->setApiKey(d->secrets->read(QLatin1String(SecretStore::kCepifyKey)));
 
-        const bool useCepify = d->settings->provider() == QLatin1String(CepifyProvider::kId);
-        d->active = useCepify ? static_cast<ITranscriptionProvider *>(d->cepify)
-                              : static_cast<ITranscriptionProvider *>(d->groq);
-        d->tray->setProviderName(d->active->displayName());
-        d->tray->setStatus(d->active->isConfigured() ? TrayIcon::Status::Idle
-                                                     : TrayIcon::Status::Unconfigured);
+        selectActiveProvider();
 
         d->session->setRestoreToken(d->secrets->read(QLatin1String(SecretStore::kRestoreToken)));
         // Só aquece a sessão se já houver autorização guardada; sem token,
@@ -342,6 +333,38 @@ bool ApplicationController::start()
     return true;
 }
 
+void ApplicationController::applyLiveSettings()
+{
+    d->machine->setMinimumHoldMs(d->settings->minimumHoldMs());
+    d->recorder->setDeviceId(d->settings->inputDeviceId());
+    d->tray->setAutostartEnabled(d->settings->autostart());
+    d->cepify->setBaseUrl(d->settings->cepifyBaseUrl());
+    d->cepify->setHotwords(d->settings->hotwords());
+    d->delivery->setAutoPaste(d->settings->autoPaste());
+    d->delivery->setTerminalMode(d->settings->terminalPasteMode());
+    d->delivery->setPasteDelayMs(d->settings->pasteDelayMs());
+}
+
+void ApplicationController::selectActiveProvider()
+{
+    const bool useCepify = d->settings->provider() == QLatin1String(CepifyProvider::kId);
+    d->active = useCepify ? static_cast<ITranscriptionProvider *>(d->cepify)
+                          : static_cast<ITranscriptionProvider *>(d->groq);
+    d->tray->setProviderName(d->active->displayName());
+    d->tray->setStatus(d->active->isConfigured() ? TrayIcon::Status::Idle
+                                                 : TrayIcon::Status::Unconfigured);
+}
+
+void ApplicationController::reloadSettings()
+{
+    // O reparse é obrigatório: o KConfig deste processo tem a cópia lida na
+    // partida e não percebe que a janela de configurações gravou por cima.
+    d->settings->reload();
+    applyLiveSettings();
+    selectActiveProvider();
+    qCInfo(SURR_APP) << "configurações recarregadas a pedido da janela de configurações";
+}
+
 void ApplicationController::cleanupAudio()
 {
     if (d->settings->debugKeepAudio()) {
@@ -394,7 +417,10 @@ void ApplicationController::shutdown()
     cleanupAudio();
     d->injector->detach();
     d->session->close();
-    d->settings->save();
+    // Sem save() aqui de propósito. O único ponto em que o daemon escreve
+    // configuração é o autostart da bandeja, que já sincroniza na hora; um
+    // sync na saída só teria o efeito de despejar a cópia em memória por
+    // cima do que a janela de configurações tivesse acabado de gravar.
     QCoreApplication::quit();
 }
 

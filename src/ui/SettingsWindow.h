@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QDBusPendingCall>
 #include <QObject>
 #include <QStringList>
 
@@ -37,6 +38,10 @@ class SettingsBackend : public QObject
     Q_PROPERTY(QStringList inputDevices READ inputDevices CONSTANT)
     Q_PROPERTY(QStringList inputDeviceIds READ inputDeviceIds CONSTANT)
     Q_PROPERTY(QString statusMessage READ statusMessage NOTIFY statusChanged)
+    /// Verdadeiro quando o rascunho difere do que está gravado. É o que
+    /// acende o botão Aplicar — e o que o faz apagar sozinho quando o valor
+    /// volta ao original, que é o ponto de esbarrar sem querer num controle.
+    Q_PROPERTY(bool dirty READ isDirty NOTIFY dirtyChanged)
 
 public:
     explicit SettingsBackend(QObject *parent = nullptr);
@@ -72,6 +77,7 @@ public:
     QStringList inputDevices() const;
     QStringList inputDeviceIds() const;
     QString statusMessage() const;
+    bool isDirty() const;
 
     Q_INVOKABLE void setGroqKey(const QString &key);
     Q_INVOKABLE void clearGroqKey();
@@ -84,17 +90,26 @@ public:
     Q_INVOKABLE void authorizePaste();
     /// Abre a tela do sistema para trocar o atalho.
     Q_INVOKABLE void configureShortcut();
-    Q_INVOKABLE void save();
+    /// Grava o rascunho, sincroniza o arquivo e avisa o daemon (botão Aplicar).
+    Q_INVOKABLE void apply();
+    /// Igual ao apply, e fecha a janela quando o daemon confirmar (botão OK).
+    Q_INVOKABLE void applyAndClose();
     Q_INVOKABLE void testProvider();
 
 Q_SIGNALS:
     void changed();
     void secretsChanged();
     void statusChanged();
+    void dirtyChanged();
 
 private:
     void setStatus(const QString &message);
     bool provider_isCepify() const;
+    /// Empurra o rascunho para o `Settings` e sincroniza o arquivo.
+    void applyDraft();
+    /// Pede ao daemon que releia o `surrrc`. Sem isto, o que foi aplicado só
+    /// valeria no próximo boot: o KConfig dele não percebe a gravação.
+    QDBusPendingCall notifyDaemon();
 
     struct Private;
     Private *d;

@@ -73,6 +73,13 @@ public:
 
     void save();
 
+    /// Relê o arquivo do disco, descartando o que estava em memória.
+    ///
+    /// O KConfig não percebe sozinho que outro processo gravou. O daemon
+    /// precisa disto quando a janela de configurações aplica; sem o reparse,
+    /// ele seguiria com os valores lidos na partida até o próximo boot.
+    void reload();
+
 Q_SIGNALS:
     void changed();
 
