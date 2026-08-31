@@ -59,10 +59,16 @@ O Wayland não deixa simular a tecla Pause, então nenhum script vai testar isto
       gravação) e aparece no monitor certo em setup multi-monitor.
 - [ ] A colagem funciona nos aplicativos que eu uso — inclusive um app
       XWayland — com acentuação, emoji e múltiplas linhas.
-- [ ] Reiniciar o app não faz reaparecer o diálogo de permissão
-      (`restore_token` persistido).
-- [ ] Autostart: depois de logout/login o ditado funciona sem abrir terminal —
-      inclusive o proxy, que **não** é herdado do `.zshrc` nesse cenário.
+- [x] **Reiniciar o app não faz reaparecer o diálogo de permissão**
+      (`restore_token` persistido). *Confirmado por mim em 2026-08-31, sobre o
+      commit `364ac1b`: boot completo da máquina, nenhuma caixa de diálogo, e a
+      carteira regravada 3 s depois do `EIS conectado` — o token novo entrando
+      no lugar do usado.*
+- [x] **Autostart: depois de logout/login o ditado funciona sem abrir
+      terminal** — inclusive o proxy, que **não** é herdado do `.zshrc` nesse
+      cenário. *Confirmado por mim em 2026-08-31, sobre o commit `364ac1b`:
+      boot completo, Pause → falar → soltar → texto colado, com o log trazendo
+      `surr.net: proxy: do kioslaverc`.*
 - [ ] As mensagens de erro (chave inválida, internet fora, timeout, microfone
       ausente, permissão recusada) são compreensíveis para mim.
 - [ ] O surr não atrapalha a sessão: não segura a tecla Pause quando está
