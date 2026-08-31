@@ -265,12 +265,18 @@ via KConfig e KWallet.
 | Alvo | Depende de | Testável sem sessão gráfica |
 |---|---|---|
 | `surr_core` | só `Qt6::Core` + `Qt6::Network` | **sim, 100%** |
-| `surr_platform` | + DBus, Multimedia, libei, KF6 | precisa do barramento |
+| `surr_platform` | + DBus, Multimedia, libei, KF6 | precisa do barramento e de um plugin QPA |
 | `surr_ui` | + Quick, LayerShellQt, SNI | precisa de display |
 
 A separação é enforcement, não decoração: como `surr_core` não linka
 `Qt6::DBus`, um `#include <QDBusMessage>` perdido na máquina de estados vira
-**erro de compilação**, e a suíte headless continua headless.
+**erro de compilação**, e os testes dessa camada continuam rodando sem
+sessão gráfica nenhuma.
+
+Um teste que linke `surr_platform`, porém, **não** é headless: essa biblioteca
+linka `Qt6::Gui` como PUBLIC, o CMake propaga `-DQT_GUI_LIB` para o objeto do
+teste e o `QTEST_MAIN` passa a instanciar um `QGuiApplication`, que exige um
+plugin QPA. É o caso do `settings`, o único teste fora do `surr_core`.
 
 ---
 
@@ -284,6 +290,35 @@ Cobrem a máquina de estados (todas as arestas de corrida de apertar/soltar),
 o header do WAV, a conversão de PCM contra os formatos reais dos microfones
 desta máquina, o parsing das respostas dos dois providers, o mapeamento
 HTTP→frase acionável e a resolução de proxy.
+
+### Sem sessão gráfica (CI, contêiner, SSH)
+
+Seis dos sete testes linkam só o `surr_core` e rodam em qualquer lugar. O
+`settings` linka `surr_platform` e precisa de um plugin QPA — sem isso ele
+aborta antes do primeiro caso, com *"no Qt platform plugin could be
+initialized"*. O `offscreen` resolve:
+
+```bash
+QT_QPA_PLATFORM=offscreen ctest --test-dir build --output-on-failure
+```
+
+Numa sessão Plasma a falha não aparece nem apagando `DISPLAY` e
+`WAYLAND_DISPLAY`: o plugin wayland acha o socket sozinho pelo
+`XDG_RUNTIME_DIR`. Para reproduzir o ambiente sem sessão gráfica de verdade é
+preciso apontar o `XDG_RUNTIME_DIR` para um diretório vazio.
+
+### `appstreamtest` não é deste projeto
+
+O oitavo teste vem de graça do `KDECMakeSettings` do ECM, e não valida
+`data/br.com.cepify.Surr.metainfo.xml`: ele lê o `build/install_manifest.txt` e
+valida o metainfo **já instalado**. Antes do primeiro `cmake --install` ele
+imprime *"Not installed yet, skipping"* e passa sem olhar nada; depois, valida
+a cópia instalada, não a do repositório. Ao mexer no metainfo:
+
+```bash
+appstreamcli validate --no-net data/br.com.cepify.Surr.metainfo.xml
+cmake --install build && ctest --test-dir build -R appstreamtest
+```
 
 Uma unit test não substitui a validação dos portais: veja
 `docs/ACHADOS-DO-AMBIENTE.md` para o que foi medido no ambiente real.
