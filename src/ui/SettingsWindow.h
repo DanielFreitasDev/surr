@@ -110,6 +110,9 @@ private:
     /// Pede ao daemon que releia o `surrrc`. Sem isto, o que foi aplicado só
     /// valeria no próximo boot: o KConfig dele não percebe a gravação.
     QDBusPendingCall notifyDaemon();
+    /// Fecho comum de quem mexe numa credencial: status, aviso ao QML e
+    /// aviso ao daemon.
+    void secretChanged(const QString &message);
 
     struct Private;
     Private *d;

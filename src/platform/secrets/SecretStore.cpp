@@ -28,6 +28,14 @@ struct SecretStore::Private {
     KWallet::Wallet *wallet = nullptr;
     bool fallback = false;
     QVariantMap fallbackData;
+
+    void loadFallback()
+    {
+        QFile file(fallbackPath());
+        if (file.open(QIODevice::ReadOnly)) {
+            fallbackData = QJsonDocument::fromJson(file.readAll()).object().toVariantMap();
+        }
+    }
 };
 
 SecretStore::SecretStore(QObject *parent) : QObject(parent), d(new Private) {}
@@ -60,10 +68,7 @@ void SecretStore::open()
     if (!d->wallet) {
         qCWarning(SURR_APP) << "KWallet indisponível; usando arquivo local 0600";
         d->fallback = true;
-        QFile file(fallbackPath());
-        if (file.open(QIODevice::ReadOnly)) {
-            d->fallbackData = QJsonDocument::fromJson(file.readAll()).object().toVariantMap();
-        }
+        d->loadFallback();
         Q_EMIT unavailable(QStringLiteral("O KWallet não está disponível."));
         Q_EMIT readyChanged(true);
         return;
@@ -73,11 +78,7 @@ void SecretStore::open()
         if (!ok) {
             qCWarning(SURR_APP) << "a carteira não abriu";
             d->fallback = true;
-            QFile file(fallbackPath());
-            if (file.open(QIODevice::ReadOnly)) {
-                d->fallbackData =
-                    QJsonDocument::fromJson(file.readAll()).object().toVariantMap();
-            }
+            d->loadFallback();
             Q_EMIT unavailable(
                 QStringLiteral("Não foi possível abrir a carteira do KDE."));
             Q_EMIT readyChanged(true);
@@ -91,6 +92,15 @@ void SecretStore::open()
         qCInfo(SURR_APP) << "carteira aberta";
         Q_EMIT readyChanged(true);
     });
+}
+
+void SecretStore::refresh()
+{
+    // No KWallet cada read() já é uma ida ao kwalletd, então não há cópia a
+    // atualizar. O refúgio em disco é que mora em memória desde o open().
+    if (d->fallback) {
+        d->loadFallback();
+    }
 }
 
 QString SecretStore::read(const QString &key) const

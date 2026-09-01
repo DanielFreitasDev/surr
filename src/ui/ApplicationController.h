@@ -44,6 +44,10 @@ private:
     /// Empurra para as peças os valores que elas guardam em cópia. Usado na
     /// partida e no reloadSettings, para os dois caminhos não divergirem.
     void applyLiveSettings();
+    /// O mesmo para as credenciais: o provider guarda a chave em cópia, e
+    /// quem a grava é o processo `--settings`. Também vale para os dois
+    /// caminhos.
+    void applySecrets();
     /// Escolhe o provider ativo pelo que está configurado e atualiza a bandeja.
     void selectActiveProvider();
 

@@ -115,9 +115,7 @@ bool ApplicationController::start()
                 qCInfo(SURR_APP) << "chave da Groq importada para o KWallet";
             }
         }
-        d->groq->setApiKey(d->secrets->groqApiKey());
-        d->cepify->setApiKey(d->secrets->read(QLatin1String(SecretStore::kCepifyKey)));
-
+        applySecrets();
         selectActiveProvider();
 
         d->session->setRestoreToken(d->secrets->read(QLatin1String(SecretStore::kRestoreToken)));
@@ -377,6 +375,13 @@ void ApplicationController::applyLiveSettings()
     d->delivery->setPasteDelayMs(d->settings->pasteDelayMs());
 }
 
+void ApplicationController::applySecrets()
+{
+    d->secrets->refresh();
+    d->groq->setApiKey(d->secrets->groqApiKey());
+    d->cepify->setApiKey(d->secrets->read(QLatin1String(SecretStore::kCepifyKey)));
+}
+
 void ApplicationController::selectActiveProvider()
 {
     const bool useCepify = d->settings->provider() == QLatin1String(CepifyProvider::kId);
@@ -393,6 +398,12 @@ void ApplicationController::reloadSettings()
     // partida e não percebe que a janela de configurações gravou por cima.
     d->settings->reload();
     applyLiveSettings();
+    // A chave é cópia como qualquer outro valor, e é a única que outro
+    // processo grava: a janela de configurações escreve direto no KWallet.
+    // Sem reler aqui, o daemon segue com a que leu na partida — nenhuma, no
+    // primeiro uso — e o ditado acusa "chave não configurada" enquanto o
+    // "Testar conexão" da janela, que usa a chave nova, diz OK.
+    applySecrets();
     selectActiveProvider();
     qCInfo(SURR_APP) << "configurações recarregadas a pedido da janela de configurações";
 }

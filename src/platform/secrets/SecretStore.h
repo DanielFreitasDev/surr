@@ -37,6 +37,16 @@ public:
     /// True quando o KWallet não está disponível e usamos o refúgio em disco.
     bool isUsingFallback() const;
 
+    /**
+     * Relê o que outro processo possa ter gravado desde o `open()`.
+     *
+     * No KWallet não faz nada: cada `read()` já vai ao kwalletd. Quem precisa
+     * é o refúgio em disco, lido uma vez só na abertura — e a janela de
+     * configurações grava as chaves de OUTRO processo. Sem isto, uma chave
+     * salva lá ficaria invisível aqui até o próximo boot.
+     */
+    void refresh();
+
     QString read(const QString &key) const;
     bool write(const QString &key, const QString &value);
     bool remove(const QString &key);

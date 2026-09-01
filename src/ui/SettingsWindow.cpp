@@ -165,34 +165,46 @@ void SettingsBackend::setStatus(const QString &message)
     Q_EMIT statusChanged();
 }
 
+void SettingsBackend::secretChanged(const QString &message)
+{
+    setStatus(message);
+    Q_EMIT secretsChanged();
+    // A chave fica fora do rascunho, então não pega carona no Aplicar — e
+    // quando nada mais mudou o OK nem chega a falar com o daemon
+    // (`isDirty()` é falso). Sem este aviso, salvar só a chave deixa o
+    // daemon com a que ele leu na partida: o "Testar conexão" diz OK, porque
+    // testa aqui com a chave nova, e o ditado acusa "chave não configurada".
+    //
+    // Aqui a janela continua aberta, então disparar e esquecer basta: o
+    // event loop escoa a mensagem sozinho. É o OK que precisa esperar o
+    // watcher, porque sai em seguida.
+    notifyDaemon();
+}
+
 void SettingsBackend::setGroqKey(const QString &key)
 {
-    if (d->secrets.write(QLatin1String(SecretStore::kGroqKey), key.trimmed())) {
-        setStatus(QStringLiteral("Chave da Groq salva no KWallet."));
-    } else {
-        setStatus(QStringLiteral("Não foi possível salvar a chave."));
-    }
-    Q_EMIT secretsChanged();
+    secretChanged(d->secrets.write(QLatin1String(SecretStore::kGroqKey), key.trimmed())
+                      ? QStringLiteral("Chave da Groq salva no KWallet.")
+                      : QStringLiteral("Não foi possível salvar a chave."));
 }
 
 void SettingsBackend::clearGroqKey()
 {
     d->secrets.remove(QLatin1String(SecretStore::kGroqKey));
-    setStatus(QStringLiteral("Chave da Groq removida."));
-    Q_EMIT secretsChanged();
+    secretChanged(QStringLiteral("Chave da Groq removida."));
 }
 
 void SettingsBackend::setCepifyKey(const QString &key)
 {
-    d->secrets.write(QLatin1String(SecretStore::kCepifyKey), key.trimmed());
-    setStatus(QStringLiteral("Chave do serviço próprio salva no KWallet."));
-    Q_EMIT secretsChanged();
+    secretChanged(d->secrets.write(QLatin1String(SecretStore::kCepifyKey), key.trimmed())
+                      ? QStringLiteral("Chave do serviço próprio salva no KWallet.")
+                      : QStringLiteral("Não foi possível salvar a chave."));
 }
 
 void SettingsBackend::clearCepifyKey()
 {
     d->secrets.remove(QLatin1String(SecretStore::kCepifyKey));
-    Q_EMIT secretsChanged();
+    secretChanged(QStringLiteral("Chave do serviço próprio removida."));
 }
 
 bool SettingsBackend::legacyKeyAvailable() const
@@ -208,10 +220,9 @@ bool SettingsBackend::importLegacyKey()
         return false;
     }
     const bool ok = d->secrets.write(QLatin1String(SecretStore::kGroqKey), legacy);
-    setStatus(ok ? QStringLiteral("Chave importada do Sussurro para o KWallet. "
-                                  "O arquivo original não foi alterado.")
-                 : QStringLiteral("Não foi possível gravar a chave importada."));
-    Q_EMIT secretsChanged();
+    secretChanged(ok ? QStringLiteral("Chave importada do Sussurro para o KWallet. "
+                                      "O arquivo original não foi alterado.")
+                     : QStringLiteral("Não foi possível gravar a chave importada."));
     return ok;
 }
 

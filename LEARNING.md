@@ -18,6 +18,7 @@ Medição bruta e reproduzível (comando + saída) mora em
 - [2026-08-31 — No boot, o surr nasce antes do portal e monta as sessões em dobro](#2026-08-31--no-boot-o-surr-nasce-antes-do-portal-e-monta-as-sessões-em-dobro)
 - [2026-08-31 — A janela de configurações nunca gravava nada no disco](#2026-08-31--a-janela-de-configurações-nunca-gravava-nada-no-disco)
 - [2026-08-31 — A janela de configurações herdava o layer-shell pelo ambiente, não pelo código](#2026-08-31--a-janela-de-configurações-herdava-o-layer-shell-pelo-ambiente-não-pelo-código)
+- [2026-09-01 — A chave salva na janela não chegava ao daemon, e o "Testar conexão" dizia OK](#2026-09-01--a-chave-salva-na-janela-não-chegava-ao-daemon-e-o-testar-conexão-dizia-ok)
 
 ### Pegadinhas de ambiente, dependências ou bibliotecas
 - [2026-08-31 — Reinício do portal apaga o app-id registrado; do terminal ele vira `org.kde.konsole`](#2026-08-31--reinício-do-portal-apaga-o-app-id-registrado-do-terminal-ele-vira-orgkdekonsole)
@@ -257,6 +258,78 @@ de código intercepta isso. E `/proc/<pid>/environ` mostra o ambiente do
 `exec`, então ele nunca reflete um `qunsetenv` posterior: para conferir a
 correção é preciso olhar o efeito (o protocolo), não a variável.
 
+
+---
+
+### 2026-09-01 — A chave salva na janela não chegava ao daemon, e o "Testar conexão" dizia OK
+
+**Categoria:** Bugs e soluções
+
+**Problema/Contexto:** Trocado o serviço para *Whisper próprio* e salva a chave,
+o botão *Testar conexão* respondeu **"Conexão OK"** — e o ditado seguinte falhou
+com *"A chave de Whisper próprio não está configurada."*
+
+Três carimbos de tempo fecham o caso sozinhos:
+
+```
+daemon subiu ......  2026-08-31 17:50:12   ps -o lstart= -p 3027
+surrrc gravado ....  2026-09-01 08:27:13   provider=cepify; o log traz "configurações recarregadas"
+carteira gravada ..  2026-09-01 08:27:40   a chave, 27 s DEPOIS do reload
+```
+
+O daemon lê as chaves **uma vez**, no `readyChanged` do `SecretStore`, e as
+entrega aos providers — que as guardam em cópia. O `reloadSettings` relia o
+`surrrc` e reescolhia o provider ativo (por isso a bandeja já dizia "Serviço:
+Whisper próprio"), mas nunca voltava à carteira. O `CepifyProvider` do daemon
+seguia com a string vazia lida na véspera, e `isConfigured()` é
+`hasApiKey() && endpoint.isValid()`.
+
+O "Conexão OK" não mentia: o teste roda no processo `--settings`, que acabara de
+gravar a chave e a relê na hora. Os dois processos discordavam, e cada um estava
+certo sobre si mesmo.
+
+Havia um segundo buraco no mesmo caminho: a chave fica **fora** do rascunho
+(tem botão próprio), e `apply()`/`applyAndClose()` começam com
+`if (!isDirty()) return;`. Quem salvasse só a chave e clicasse OK não dispararia
+`reloadSettings` nenhum — nem com o lado do daemon já consertado.
+
+**Solução ou insight:** Um conserto de cada lado, espelhando o que já se fez com
+a configuração:
+
+- `ApplicationController::applySecrets()`, irmã da `applyLiveSettings()`, junta
+  num lugar só o que empurra as chaves para os providers; o `reloadSettings`
+  chama-a antes do `selectActiveProvider()`, que é quem recalcula a bandeja.
+- Salvar ou apagar uma chave na janela agora avisa o daemon, pelo fecho comum
+  `secretChanged()`. Ali a janela continua aberta, então disparar e esquecer
+  basta — é o OK que precisa esperar o watcher (ver *Sair do processo descarta a
+  mensagem D-Bus assíncrona*).
+- `SecretStore::refresh()`: no KWallet não faz nada, porque cada `read()` já é
+  uma ida ao kwalletd; quem precisava era o refúgio em disco (`secrets.json`),
+  lido uma vez só no `open()` — e quem grava as chaves é outro processo. Sem
+  ele, o conserto valeria só para quem tem KWallet.
+
+Depois: daemon reiniciado pela unidade do autostart, bandeja com "Pronto" e
+"Serviço: Whisper próprio" — com a chave faltando, `selectActiveProvider()` poria
+"Configuração pendente" —, e `surr-probe-transcribe <wav> cepify` voltando
+**HTTP 200** do servidor real, com a chave lida da carteira.
+
+Observação medida de lado, deixada como está por causa do congelamento: o
+`cycleAborted` põe a bandeja em `Idle` incondicionalmente. Foi por isso que ela
+dizia "Pronto" mesmo sem chave — o primeiro ditado com erro apagou o
+"Configuração pendente" que o `selectActiveProvider()` tinha acabado de pôr.
+
+**Por que importa:** O defeito é, de novo, *uma cópia em memória que ninguém
+avisou* — e o `CLAUDE.md` já trazia a regra: "valor novo que alguma peça guarde
+em cópia entra no `applyLiveSettings()`". Só que ela foi escrita pensando em
+configuração, e a chave não é configuração: mora em outro armazém, tem outro
+botão, e escapou justamente da regra que existia para pegá-la. **A lista de
+"quem guarda cópia" é por cópia, não por arquivo** — se o valor atravessa os dois
+processos, tanto faz se ele veio do `surrrc` ou do KWallet.
+
+E o diagnóstico tinha um agravante: o teste verde. **Um teste que roda no
+processo errado não mede o que o usuário vai usar, mede o processo que o
+executa.** Vale para o *Testar conexão* e para qualquer botão de autodiagnóstico
+numa arquitetura de dois processos.
 
 ---
 
