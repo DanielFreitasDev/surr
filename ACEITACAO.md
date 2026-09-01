@@ -70,11 +70,12 @@ O Wayland não deixa simular a tecla Pause, então nenhum script vai testar isto
       boot completo, Pause → falar → soltar → texto colado, com o log trazendo
       `surr.net: proxy: do kioslaverc`.*
 - [ ] **O ditado de ponta a ponta pelo Whisper próprio.** Pause → falar →
-      soltar → o texto do meu servidor aparece no cursor. *Falta só isto: em
-      2026-09-01 a máquina já provou o resto da corrente — chave da carteira,
-      proxy, TLS, Cloudflare, Bearer e HTTP 200 de `whisper.exemplo.com.br` —,
-      mas o Wayland não deixa um script apertar a tecla Pause nem falar ao
-      microfone.*
+      soltar → o texto do meu servidor aparece no cursor. *Em 2026-09-01 a
+      máquina provou tudo menos a tecla: fala sintetizada → `CepifyProvider` →
+      `whisper.exemplo.com.br` devolveu o texto certo em 1179 ms, com a chave
+      lida do KWallet (`docs/ACHADOS-DO-AMBIENTE.md` §14). O que resta sem
+      prova é só a composição com o gatilho — o Wayland não deixa um script
+      apertar Pause nem falar ao microfone.*
 - [ ] As mensagens de erro (chave inválida, internet fora, timeout, microfone
       ausente, permissão recusada) são compreensíveis para mim.
 - [ ] O surr não atrapalha a sessão: não segura a tecla Pause quando está
@@ -110,8 +111,9 @@ Nada nesta seção é defeito. Nenhuma rodada de verificação deve relatá-las.
    gravadas; o teste ao vivo se faz à mão, pelo `surr-probe-transcribe` ou pelo
    *Testar conexão* da janela. *(O servidor esteve fora do ar — Cloudflare 1033,
    túnel caído — enquanto o projeto era feito. Voltou: em 2026-09-01 o
-   `surr-probe-transcribe <wav> cepify` obteve **HTTP 200**, com a chave lida do
-   KWallet. A limitação que resta é a do item 1, e é de desenho.)*
+   `surr-probe-transcribe <wav> cepify` transcreveu fala de verdade em 1179 ms,
+   com a chave lida do KWallet — `docs/ACHADOS-DO-AMBIENTE.md` §14. A limitação
+   que resta é a do item 1, e é de desenho.)*
 3. **Nenhum script consegue apertar a tecla Pause.** No Wayland o compositor é o
    dono do teclado; não há como simular a tecla. Todo o caminho
    atalho → gravação → colagem só se prova com um humano falando. Por isso ele

@@ -255,3 +255,65 @@ primeira amostra, então a cápsula não atrasa de forma perceptível.
 Cuidado com `setWantsToBeOnActiveScreen(true)`: nesse modo o LayerShellQt passa
 uma saída **nula** e deixa o compositor decidir, ignorando o `setScreen()`
 explícito. Para escolher a tela por conta própria, tem de ser `false`.
+
+---
+
+## 14. O `whisper.exemplo.com.br` voltou, e transcreve (2026-09-01)
+
+O achado nº 2 das *Limitações aceitas* do `ACEITACAO.md` dizia que o servidor
+próprio estava fora do ar (Cloudflare 1033) e que o teste ao vivo ficava
+bloqueado. Deixou de ser verdade.
+
+```
+$ curl -s https://whisper.exemplo.com.br/health
+{"status":"ok","model":"whisper-large-v3-turbo","backend":"faster-whisper/ctranslate2",
+ "device":"cuda:0","compute_type":"int8_float16","batch_size":16,"queue_depth":0,
+ "uptime_s":6479.6}
+```
+
+### Fala sintética, para não depender de alguém falar ao microfone
+
+O `espeak-ng` não está no `PATH`, mas a biblioteca está — o
+speech-dispatcher a usa (`/usr/lib/speech-dispatcher-modules/sd_espeak-ng`).
+Dá para sintetizar direto para WAV, por `ctypes`, sem tocar áudio nenhum na
+sessão: `espeak_Initialize(AUDIO_OUTPUT_SYNCHRONOUS, ...)` devolve a taxa e
+`espeak_SetSynthCallback` entrega o PCM de 16 bits. Saiu um WAV de 22050 Hz
+mono, 6,85 s.
+
+### O caminho do surr, ponta a ponta
+
+```
+$ surr-probe-transcribe fala.wav cepify
+Provider: Whisper próprio — configurado: sim
+=== TRANSCRIÇÃO OK ===
+  modelo ..... whisper-large-v3-turbo
+  latência ... 1179 ms
+  áudio ...... 302062 bytes
+  texto ...... "testando o ditado por voz do surto no servidor whisper próprio
+                da CPF em Fortaleza."
+```
+
+1179 ms para 6,85 s de áudio. Os erros são da voz robótica do espeak, não do
+servidor — e são exatamente o que o campo *Vocabulário* existe para corrigir:
+
+```
+sem hotwords ....... "... da CPF em Fortaleza."
+com hotwords ....... "... da Cepify em Fortaleza."
+        (-F "hotwords=surr, Cepify, Fortaleza")
+```
+
+### O contrato do `USO.md` bate com o que o `CepifyProvider` envia
+
+`POST <base>/v1/audio/transcriptions`, `Authorization: Bearer`, `model` =
+`whisper-large-v3-turbo`, teto de 100 MB conferido antes do envio, `language`
+omitido quando vazio (nunca em branco), `hotwords` e `prompt` como campos
+extras. O `User-Agent` obrigatório vai como `surr/<versão>` — a proteção da
+Cloudflare devolve 403 para qualquer UA começando em `OpenAI/`, e o 200 acima
+é a prova de que o nosso passa.
+
+Duas coisas do `USO.md` que o surr **não** usa, de propósito: `stream=true`
+(serve para áudio acima de ~1 h; ditado tem segundos) e o `/health` — o
+`CepifyProvider::healthUrl()` existe e é coberto pelo teste unitário, mas
+nenhum caminho do aplicativo o chama. O *Testar conexão* manda uma transcrição
+de verdade, que prova mais do que o `/health`: credencial, multipart e leitura
+da resposta.
