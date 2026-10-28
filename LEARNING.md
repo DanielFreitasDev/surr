@@ -794,7 +794,7 @@ remanescente. Protocolo completo em
 **Problema/Contexto:** O `ACEITACAO.md` termina com a linha
 
 ```
-CONGELADO em 93dc02a — 2026-08-31. Só mexer com pedido explícito meu ou defeito
+CONGELADO em d645df9 — 2026-08-31. Só mexer com pedido explícito meu ou defeito
 real de uso.
 ```
 

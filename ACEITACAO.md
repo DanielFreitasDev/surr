@@ -54,19 +54,19 @@ O Wayland não deixa simular a tecla Pause, então nenhum script vai testar isto
       nela.** Borda e botões de fechar/minimizar/maximizar, nada encostando na
       barra de rolagem, *Aplicar* acendendo ao mudar e apagando ao desfazer, e
       o daemon adotando o valor novo sem reiniciar. *Confirmado por mim em
-      2026-08-31, sobre o commit `51a85af`.*
+      2026-08-31, sobre o commit `38014bc`.*
 - [ ] A cápsula não rouba foco (o cursor continua piscando no Kate durante a
       gravação) e aparece no monitor certo em setup multi-monitor.
 - [ ] A colagem funciona nos aplicativos que eu uso — inclusive um app
       XWayland — com acentuação, emoji e múltiplas linhas.
 - [x] **Reiniciar o app não faz reaparecer o diálogo de permissão**
       (`restore_token` persistido). *Confirmado por mim em 2026-08-31, sobre o
-      commit `364ac1b`: boot completo da máquina, nenhuma caixa de diálogo, e a
+      commit `4eb07bc`: boot completo da máquina, nenhuma caixa de diálogo, e a
       carteira regravada 3 s depois do `EIS conectado` — o token novo entrando
       no lugar do usado.*
 - [x] **Autostart: depois de logout/login o ditado funciona sem abrir
       terminal** — inclusive o proxy, que **não** é herdado do `.zshrc` nesse
-      cenário. *Confirmado por mim em 2026-08-31, sobre o commit `364ac1b`:
+      cenário. *Confirmado por mim em 2026-08-31, sobre o commit `4eb07bc`:
       boot completo, Pause → falar → soltar → texto colado, com o log trazendo
       `surr.net: proxy: do kioslaverc`.*
 - [ ] **O ditado de ponta a ponta pelo Whisper próprio.** Pause → falar →
@@ -134,5 +134,5 @@ Nada nesta seção é defeito. Nenhuma rodada de verificação deve relatá-las.
 
 ---
 
-CONGELADO em 93dc02a — 2026-08-31. Só mexer com pedido explícito meu ou defeito
+CONGELADO em d645df9 — 2026-08-31. Só mexer com pedido explícito meu ou defeito
 real de uso.
