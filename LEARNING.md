@@ -28,12 +28,15 @@ Medição bruta e reproduzível (comando + saída) mora em
 - [2026-08-31 — `appstreamtest` valida o metainfo INSTALADO, não o do repositório](#2026-08-31--appstreamtest-valida-o-metainfo-instalado-não-o-do-repositório)
 - [2026-08-31 — O separador de dígitos do C++ quebra varredores de código](#2026-08-31--o-separador-de-dígitos-do-c-quebra-varredores-de-código)
 - [2026-08-31 — `PIPESTATUS` é do bash; no zsh o veredito do `verificar.sh` some](#2026-08-31--pipestatus-é-do-bash-no-zsh-o-veredito-do-verificarsh-some)
+- [2026-10-28 — Mover a pasta do projeto inutiliza o `build/`](#2026-10-28--mover-a-pasta-do-projeto-inutiliza-o-build)
+- [2026-10-28 — Capturas para o README: cápsula pelo `--preview`, janela pelo `spectacle -a`](#2026-10-28--capturas-para-o-readme-cápsula-pelo---preview-janela-pelo-spectacle--a)
 
 ### Decisões de arquitetura
 - [2026-08-31 — Quem derruba a sessão do portal tem de ser um caminho só](#2026-08-31--quem-derruba-a-sessão-do-portal-tem-de-ser-um-caminho-só)
 - [2026-08-31 — O estado da cápsula atravessa a fronteira QML↔C++ como inteiro cru](#2026-08-31--o-estado-da-cápsula-atravessa-a-fronteira-qmlc-como-inteiro-cru)
 - [2026-08-31 — O veredito de "pronto" é o código de saída do `verificar.sh`](#2026-08-31--o-veredito-de-pronto-é-o-código-de-saída-do-verificarsh)
 - [2026-08-31 — O projeto está CONGELADO: auditoria nova só com defeito real de uso](#2026-08-31--o-projeto-está-congelado-auditoria-nova-só-com-defeito-real-de-uso)
+- [2026-10-28 — O servidor Whisper próprio não tem endereço padrão no código](#2026-10-28--o-servidor-whisper-próprio-não-tem-endereço-padrão-no-código)
 
 ### Abordagens que NÃO funcionaram
 _(vazio)_
@@ -625,6 +628,51 @@ depender de leitura — perder esse número no pipe desfaz a troca.
 
 ---
 
+### 2026-10-28 — Mover a pasta do projeto inutiliza o `build/`
+
+**Categoria:** Pegadinhas de ambiente, dependências ou bibliotecas
+
+**Problema/Contexto:** Depois que o repositório mudou de
+`~/desenvolvimento/temporarios/surr` para `~/desenvolvimento/projetos/cpp/surr`,
+o `cmake --build build` falhou com `ninja: error: rebuilding 'build.ninja':
+subcommand failed`. O `CMakeCache.txt` guarda caminhos absolutos da fonte e do
+próprio build, e o `--regenerate-during-build` tentava usar o caminho antigo.
+
+**Solução ou insight:** `build/` é só artefato: `rm -rf build` e reconfigurar
+com o comando do `CLAUDE.md` (o `CMAKE_INSTALL_PREFIX` em `~/.local` precisa ir
+junto, senão o `cmake --install` vai para `/usr/local`).
+
+**Por que importa:** O erro não menciona o caminho antigo na primeira linha, e
+parece defeito do `CMakeLists.txt`. Não é: é cache de outra pasta.
+
+---
+
+### 2026-10-28 — Capturas para o README: cápsula pelo `--preview`, janela pelo `spectacle -a`
+
+**Categoria:** Pegadinhas de ambiente, dependências ou bibliotecas
+
+**Problema/Contexto:** As imagens de `docs/assets/` precisavam mostrar a cápsula
+e a janela reais, sem expor o resto da tela nem nenhum endereço ou chave.
+
+**Solução ou insight:**
+
+- Cápsula: `surr --preview` em segundo plano e `spectacle -b -n -f -o s.png` a
+  cada ~1 s. A tela inteira (3 monitores, 5760×1080) fica fora do repositório;
+  entra só o recorte de 322×60 com máscara arredondada
+  (`magick ... -compose CopyOpacity`), em fundo transparente.
+- Janela: `surr --settings` e `spectacle -b -n -a -e` (janela ativa, sem
+  decoração). Com o serviço em Groq, o campo *Endereço* nem aparece.
+- `inkscape arquivo.svg -o arquivo.png` serve para conferir os SVG antes do
+  GitHub. Foi assim que apareceu um gradiente sumindo: numa linha reta a caixa
+  tem altura zero, e o gradiente em `objectBoundingBox` não é desenhado. A
+  saída é `gradientUnits="userSpaceOnUse"`.
+
+**Por que importa:** No Wayland nenhum programa consegue capturar a tela "por
+fora" sem o portal, mas o `spectacle` é do próprio KDE e captura direto.
+E o recorte rente é o que impede vazar o conteúdo dos outros monitores.
+
+---
+
 ## Decisões de arquitetura
 
 ### 2026-08-31 — Quem derruba a sessão do portal tem de ser um caminho só
@@ -776,3 +824,30 @@ que o de defeito remanescente. Uma sessão limpa não tem como saber disso lendo
 código — o código parece tão auditável quanto no primeiro dia. Por isso a nota
 mora aqui, que entra no contexto sozinho, e não só no `ACEITACAO.md`, que alguém
 precisa lembrar de abrir.
+
+---
+
+### 2026-10-28 — O servidor Whisper próprio não tem endereço padrão no código
+
+**Categoria:** Decisões de arquitetura
+
+**Problema/Contexto:** O repositório ia virar público, e o endereço do servidor
+Whisper próprio não podia aparecer nele. Ele estava como padrão em dois lugares
+(`CepifyProvider::defaultBaseUrl()` e o `SURR_GET` de `cepifyBaseUrl`), nos
+testes, na documentação e em mensagens de commit antigas.
+
+**Solução ou insight:** O padrão passou a ser vazio. Sem base, o endpoint fica
+inválido e `isConfigured()` devolve false, então a bandeja mostra
+"Configuração pendente" até o usuário digitar o endereço. O
+`surr-probe-transcribe` passou a ler o endereço do `surrrc`
+(`Settings().cepifyBaseUrl()`), porque dependia do padrão. Nesta máquina o
+endereço foi gravado no `surrrc` com `kwriteconfig6`, para o daemon seguir igual.
+Os testes usam `whisper.exemplo.com.br`.
+
+A regra do `CLAUDE.md` ("toda chave nova precisa de um padrão utilizável")
+continua valendo: o padrão utilizável é o Groq, que é o serviço padrão.
+
+**Por que importa:** Tirar dos arquivos não basta para um repositório público:
+o histórico do Git guarda cada versão antiga. Qualquer valor que não pode ficar
+público tem de sair também do histórico (e das mensagens de commit), antes de
+publicar.
