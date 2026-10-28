@@ -335,6 +335,21 @@ env -u http_proxy -u https_proxy -u all_proxy surr
 </details>
 
 <details>
+<summary><b>Fone Bluetooth: o som muda quando começo a ditar</b></summary>
+
+É esperado. O fone Bluetooth só tem microfone no modo **headset** (HFP), que
+tem som de ligação telefônica. Quando o surr começa a gravar, o sistema troca
+o fone para esse modo sozinho, e volta ao modo de música (A2DP) uns segundos
+depois de você soltar a tecla.
+
+A troca leva pelo menos meio segundo: espere um instante depois de apertar
+`Pause` antes de começar a falar. Se o fone não aparecer na lista de
+microfones, confira se ele está conectado em **Configurações do Sistema →
+Bluetooth**.
+
+</details>
+
+<details>
 <summary><b>Num terminal, o <code>Ctrl+V</code> não cola</b></summary>
 
 Terminais usam `Ctrl+Shift+V`. Ligue **Configurações → Usar Ctrl+Shift+V**.

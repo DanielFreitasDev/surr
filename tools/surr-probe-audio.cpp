@@ -17,6 +17,7 @@ static void say(const QString &s) { std::printf("%s\n", qPrintable(s)); std::ffl
 
 int main(int argc, char **argv)
 {
+    AudioRecorder::selectAudioBackend();
     QCoreApplication app(argc, argv);
 
     say(QStringLiteral("Microfones disponíveis:"));

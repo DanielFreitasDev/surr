@@ -317,3 +317,48 @@ Duas coisas do `USO.md` que o surr **não** usa, de propósito: `stream=true`
 nenhum caminho do aplicativo o chama. O *Testar conexão* manda uma transcrição
 de verdade, que prova mais do que o `/health`: credencial, multipart e leitura
 da resposta.
+
+---
+
+## 15. O backend PipeWire do Qt 6.10 esconde o microfone de fone Bluetooth (2026-10-28)
+
+Relato de uso: num Kubuntu 26.04 igual a este, o microfone de um fone
+Bluetooth não aparecia no surr. Esta máquina não tem fone Bluetooth, então o
+fone foi imitado com o mesmo loopback que o WirePlumber 0.5.13 cria em
+`/usr/share/wireplumber/scripts/monitors/bluez.lua` (`CreateDeviceLoopbackSource`):
+um `Audio/Source` sempre presente, cuja captura aponta para o nó interno do
+perfil HFP — que, com o fone em A2DP, não existe.
+
+```bash
+pw-loopback -n surr_teste_bt \
+  --capture-props='node.name=surr_teste_capture_internal media.class=Stream/Input/Audio/Internal node.passive=true node.dont-fallback=true node.linger=true target.object=nao_existe audio.channels=1 audio.position=[MONO] stream.dont-remix=true' \
+  --playback-props='node.name=surr_teste_bt_input node.description=FoneBT_simulado media.class=Audio/Source node.virtual=false audio.position=[MONO]'
+```
+
+Listando com `QMediaDevices::audioInputs()` (Qt 6.10.2):
+
+```
+backend padrão (PipeWire nativo)        QT_AUDIO_BACKEND=pulseaudio
+  Logitech Webcam C925e                   Áudio interno
+  Samsung USB C Earphones                 Logitech Webcam C925e
+  Áudio interno                           Samsung USB C Earphones
+                                          FoneBT_simulado
+```
+
+O log `qt.multimedia.pipewire.registry` mostra o nó chegando
+(`objectAdded ... node.name=surr_teste_bt_input, media.class=Audio/Source`) — o
+backend recebe e não lista. Os ids são o `node.name` nos dois backends, iguais.
+
+Com o PulseAudio, gravar do microfone simulado cria o vínculo que o
+`autoswitch-bluetooth-profile.lua` vigia para trocar o fone para HFP (um
+`Stream/Input/Audio` ligado ao loopback, 500 ms de espera antes da troca):
+
+```
+$ pw-link -l surr_teste_bt_input
+surr_teste_bt_input:capture_MONO
+  |-> surr-probe-audio:input_MONO
+# media.class=Stream/Input/Audio, client.api=pipewire-pulse
+```
+
+Não medido, por falta de fone: a troca A2DP→HFP de verdade e quanto do começo
+da fala ela come.

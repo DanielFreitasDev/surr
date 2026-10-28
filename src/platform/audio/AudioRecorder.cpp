@@ -7,6 +7,7 @@
 #include <QMediaDevices>
 #include <QStandardPaths>
 #include <QThread>
+#include <QtEnvironmentVariables>
 
 namespace surr {
 
@@ -63,6 +64,23 @@ QList<QPair<QString, QString>> AudioRecorder::availableInputs()
         result.append({QString::fromUtf8(device.id()), device.description()});
     }
     return result;
+}
+
+void AudioRecorder::selectAudioBackend()
+{
+    // O backend PipeWire nativo do Qt 6.10 (o padrão) só lista um microfone
+    // depois de ler os formatos dele — e o microfone de um fone Bluetooth em
+    // A2DP é um loopback do WirePlumber sem nada ligado atrás, que nunca
+    // responde. O fone some da lista, e por isso nunca grava a ponto de o
+    // WirePlumber trocar para HFP. Medido com um loopback igual ao do
+    // bluez.lua: o PipeWire anuncia o nó, o backend nativo esconde, o
+    // PulseAudio (servido pelo pipewire-pulse) lista. Os ids (node.name) são
+    // os mesmos nos dois, então o microfone salvo continua valendo.
+    //
+    // Quem já definiu a variável no ambiente decide.
+    if (qEnvironmentVariableIsEmpty("QT_AUDIO_BACKEND")) {
+        qputenv("QT_AUDIO_BACKEND", "pulseaudio");
+    }
 }
 
 void AudioRecorder::start(quint64 runId)

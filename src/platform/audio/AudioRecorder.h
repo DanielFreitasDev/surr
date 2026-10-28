@@ -28,6 +28,12 @@ public:
     /// Lista os microfones disponíveis como pares (id, nome legível).
     static QList<QPair<QString, QString>> availableInputs();
 
+    /**
+     * Escolhe o backend de áudio do Qt. Precisa rodar antes de criar o
+     * QCoreApplication/QApplication — o Qt lê a variável uma vez, ao subir.
+     */
+    static void selectAudioBackend();
+
     void start(quint64 runId);
     void stop(quint64 runId);
     void abort(quint64 runId);

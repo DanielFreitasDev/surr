@@ -1,4 +1,5 @@
 #include "ApplicationController.h"
+#include "AudioRecorder.h"
 #include "OverlayController.h"
 #include "SettingsWindow.h"
 #include "SurrDebug.h"
@@ -87,6 +88,10 @@ int main(int argc, char **argv)
     if (settingsMode) {
         qunsetenv("QT_WAYLAND_SHELL_INTEGRATION");
     }
+
+    // Antes do QApplication, e em todos os modos: a janela de configurações
+    // também lista os microfones, e precisa ver os mesmos do daemon.
+    surr::AudioRecorder::selectAudioBackend();
 
 #ifdef SURR_HAS_LAYERSHELL
     if (!settingsMode) {
