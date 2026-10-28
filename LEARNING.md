@@ -19,6 +19,7 @@ Medição bruta e reproduzível (comando + saída) mora em
 - [2026-08-31 — A janela de configurações nunca gravava nada no disco](#2026-08-31--a-janela-de-configurações-nunca-gravava-nada-no-disco)
 - [2026-08-31 — A janela de configurações herdava o layer-shell pelo ambiente, não pelo código](#2026-08-31--a-janela-de-configurações-herdava-o-layer-shell-pelo-ambiente-não-pelo-código)
 - [2026-09-01 — A chave salva na janela não chegava ao daemon, e o "Testar conexão" dizia OK](#2026-09-01--a-chave-salva-na-janela-não-chegava-ao-daemon-e-o-testar-conexão-dizia-ok)
+- [2026-10-28 — O microfone do fone Bluetooth sumia da lista: culpa do backend PipeWire do Qt](#2026-10-28--o-microfone-do-fone-bluetooth-sumia-da-lista-culpa-do-backend-pipewire-do-qt)
 
 ### Pegadinhas de ambiente, dependências ou bibliotecas
 - [2026-08-31 — Reinício do portal apaga o app-id registrado; do terminal ele vira `org.kde.konsole`](#2026-08-31--reinício-do-portal-apaga-o-app-id-registrado-do-terminal-ele-vira-orgkdekonsole)
@@ -333,6 +334,48 @@ E o diagnóstico tinha um agravante: o teste verde. **Um teste que roda no
 processo errado não mede o que o usuário vai usar, mede o processo que o
 executa.** Vale para o *Testar conexão* e para qualquer botão de autodiagnóstico
 numa arquitetura de dois processos.
+
+---
+
+### 2026-10-28 — O microfone do fone Bluetooth sumia da lista: culpa do backend PipeWire do Qt
+
+**Categoria:** Bugs e soluções
+
+**Problema/Contexto:** Num Kubuntu 26.04 igual a este, o fone Bluetooth de um
+usuário não era reconhecido como microfone. A suspeita inicial ("o surr só
+aceita USB e P2") não se sustenta: o `AudioEngine` não filtra nada, usa o que o
+`QMediaDevices` lista. Quem filtrava era o próprio Qt.
+
+O WirePlumber 0.5.13 dá a todo fone Bluetooth um microfone que existe mesmo em
+A2DP (perfil sem microfone): um loopback `bluez_input.*`, e quando alguém grava
+dele, o fone troca para HFP em 500 ms. Só que o backend **PipeWire nativo** do
+Qt 6.10 — o padrão, sem aviso — só lista um nó depois de ler os formatos dele,
+e esse loopback sem nada ligado atrás nunca responde. O fone some da lista;
+sem gravar dele, a troca para HFP nunca acontece. Um ovo e galinha.
+
+Reproduzido sem fone, com um `pw-loopback` igual ao do `bluez.lua` (comando e
+saída em `docs/ACHADOS-DO-AMBIENTE.md` §15): o log
+`qt.multimedia.pipewire.registry` mostra o nó chegando, e a lista não o traz.
+
+**Solução ou insight:** `AudioRecorder::selectAudioBackend()` põe
+`QT_AUDIO_BACKEND=pulseaudio` antes do `QApplication` — em todos os modos,
+porque a janela de configurações também lista microfones. O PulseAudio é
+servido pelo `pipewire-pulse`, lista o loopback, e os ids (`node.name`) são os
+mesmos, então o microfone salvo de quem já usava continua valendo. Quem já
+definiu a variável no ambiente decide. Verificado: a lista passa a trazer o
+fone simulado, a gravação sai dele por um `Stream/Input/Audio` (o que o
+`autoswitch-bluetooth-profile.lua` vigia), e o `--settings` aberto pela
+bandeja herda `QT_AUDIO_BACKEND=pulseaudio`.
+
+Não verificado, por falta de fone: a troca A2DP→HFP de verdade e quanto do
+começo da fala ela come.
+
+**Por que importa:** Não há erro em lugar nenhum — o dispositivo
+simplesmente não existe para o app. E não aparece em nenhuma máquina sem fone
+Bluetooth, como as duas em que o surr foi desenvolvido. Para imitar um
+dispositivo que não se tem, monte o nó com as mesmas propriedades que o
+WirePlumber monta (o script está em `/usr/share/wireplumber/scripts/`) e
+compare os dois backends com `QT_AUDIO_BACKEND`.
 
 ---
 
