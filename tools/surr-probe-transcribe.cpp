@@ -8,6 +8,7 @@
 #include "GroqProvider.h"
 #include "ProxyResolver.h"
 #include "SecretStore.h"
+#include "Settings.h"
 
 #include <QCoreApplication>
 #include <QElapsedTimer>
@@ -54,6 +55,8 @@ int main(int argc, char **argv)
         ITranscriptionProvider *provider = nullptr;
         if (which == QLatin1String("cepify")) {
             auto *p = new CepifyProvider(nam, &app);
+            // O endereço não tem padrão no código; vem do mesmo surrrc do app.
+            p->setBaseUrl(Settings().cepifyBaseUrl());
             p->setApiKey(secrets->read(QLatin1String(SecretStore::kCepifyKey)));
             provider = p;
         } else {

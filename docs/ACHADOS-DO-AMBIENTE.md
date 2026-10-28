@@ -258,14 +258,14 @@ explícito. Para escolher a tela por conta própria, tem de ser `false`.
 
 ---
 
-## 14. O `whisper.exemplo.com.br` voltou, e transcreve (2026-09-01)
+## 14. O servidor Whisper próprio voltou, e transcreve (2026-09-01)
 
 O achado nº 2 das *Limitações aceitas* do `ACEITACAO.md` dizia que o servidor
 próprio estava fora do ar (Cloudflare 1033) e que o teste ao vivo ficava
 bloqueado. Deixou de ser verdade.
 
 ```
-$ curl -s https://whisper.exemplo.com.br/health
+$ curl -s https://<servidor>/health
 {"status":"ok","model":"whisper-large-v3-turbo","backend":"faster-whisper/ctranslate2",
  "device":"cuda:0","compute_type":"int8_float16","batch_size":16,"queue_depth":0,
  "uptime_s":6479.6}

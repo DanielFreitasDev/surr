@@ -5,7 +5,7 @@
 namespace surr {
 
 /**
- * Servidor whisper próprio, conforme
+ * Servidor whisper próprio (endereço informado pelo usuário), conforme
  * `projetos/python/whisper-turbo-api/USO.md`.
  *
  * Dialeto compatível com a OpenAI em `<base>/v1/audio/transcriptions`,
@@ -44,8 +44,6 @@ public:
     static QString normalizeBaseUrl(const QString &input);
 
     void setHotwords(const QString &hotwords);
-
-    static QString defaultBaseUrl();
 
 protected:
     QString defaultModel() const override;

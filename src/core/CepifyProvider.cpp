@@ -19,12 +19,8 @@ QHttpPart makeTextPart(const QString &name, const QString &value)
 CepifyProvider::CepifyProvider(QNetworkAccessManager *nam, QObject *parent)
     : OpenAiCompatibleProvider(nam, parent)
 {
-    setBaseUrl(defaultBaseUrl());
-}
-
-QString CepifyProvider::defaultBaseUrl()
-{
-    return QStringLiteral("https://whisper.exemplo.com.br");
+    // Sem endereço padrão de propósito: o servidor é de cada um, e o código
+    // é público. Sem base, o endpoint fica inválido e isConfigured() é false.
 }
 
 QString CepifyProvider::normalizeBaseUrl(const QString &input)

@@ -49,7 +49,8 @@ void SettingsTest::defaultsAreUsable()
     QVERIFY(!s.onboardingDone());
     // O áudio não deve ficar em disco por padrão.
     QVERIFY(!s.debugKeepAudio());
-    QCOMPARE(s.cepifyBaseUrl(), QStringLiteral("https://whisper.exemplo.com.br"));
+    // O servidor próprio não tem padrão: o endereço é de cada usuário.
+    QVERIFY(s.cepifyBaseUrl().isEmpty());
 }
 
 void SettingsTest::roundTripsValues()

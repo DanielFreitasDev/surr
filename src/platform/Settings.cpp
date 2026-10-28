@@ -59,7 +59,7 @@ void Settings::setLanguage(const QString &c) { SURR_SET("Transcription", "langua
 
 QString Settings::cepifyBaseUrl() const
 {
-    return SURR_GET("Transcription", "cepifyBaseUrl", QStringLiteral("https://whisper.exemplo.com.br"));
+    return SURR_GET("Transcription", "cepifyBaseUrl", QString());
 }
 void Settings::setCepifyBaseUrl(const QString &u) { SURR_SET("Transcription", "cepifyBaseUrl", u); }
 

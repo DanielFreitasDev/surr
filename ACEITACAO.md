@@ -72,7 +72,7 @@ O Wayland não deixa simular a tecla Pause, então nenhum script vai testar isto
 - [ ] **O ditado de ponta a ponta pelo Whisper próprio.** Pause → falar →
       soltar → o texto do meu servidor aparece no cursor. *Em 2026-09-01 a
       máquina provou tudo menos a tecla: fala sintetizada → `CepifyProvider` →
-      `whisper.exemplo.com.br` devolveu o texto certo em 1179 ms, com a chave
+      o servidor Whisper próprio devolveu o texto certo em 1179 ms, com a chave
       lida do KWallet (`docs/ACHADOS-DO-AMBIENTE.md` §14). O que resta sem
       prova é só a composição com o gatilho — o Wayland não deixa um script
       apertar Pause nem falar ao microfone.*
@@ -106,7 +106,7 @@ Nada nesta seção é defeito. Nenhuma rodada de verificação deve relatá-las.
    de API. Um check que depende da internet, do proxy ou da Groq acusaria
    "FALHOU" sem o projeto ter defeito nenhum — e esta máquina exige proxy. A
    transcrição ao vivo se prova usando o app, não pelo script.
-2. **O `verificar.sh` não fala com `whisper.exemplo.com.br`, e isso não muda.**
+2. **O `verificar.sh` não fala com o servidor Whisper próprio, e isso não muda.**
    O `CepifyProvider` é exercitado offline pelos testes de parsing, com respostas
    gravadas; o teste ao vivo se faz à mão, pelo `surr-probe-transcribe` ou pelo
    *Testar conexão* da janela. *(O servidor esteve fora do ar — Cloudflare 1033,

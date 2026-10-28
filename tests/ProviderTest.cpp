@@ -54,8 +54,13 @@ void ProviderTest::cepifyDefaults()
 {
     CepifyProvider p(&nam);
     QCOMPARE(p.id(), QStringLiteral("cepify"));
-    QCOMPARE(p.endpoint().toString(),
-             QStringLiteral("https://whisper.exemplo.com.br/v1/audio/transcriptions"));
+    // Sem endereço padrão: nada configurado até o usuário informar o servidor.
+    QVERIFY(!p.endpoint().isValid());
+    QVERIFY(!p.healthUrl().isValid());
+    p.setApiKey(QStringLiteral("chave"));
+    QVERIFY(!p.isConfigured());
+    p.setBaseUrl(QStringLiteral("https://whisper.exemplo.com.br"));
+    QVERIFY(p.isConfigured());
     QCOMPARE(p.healthUrl().toString(), QStringLiteral("https://whisper.exemplo.com.br/health"));
     QCOMPARE(p.maxUploadBytes(), 100LL * 1024 * 1024);
 }
