@@ -1,0 +1,122 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 420" width="1280" height="420" role="img" aria-label="surr — segure, fale, solte. Ditado por voz para o KDE Plasma 6 no Wayland">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#120d2b"/>
+      <stop offset="0.55" stop-color="#151a3d"/>
+      <stop offset="1" stop-color="#0a2a3a"/>
+    </linearGradient>
+    <radialGradient id="glowA" cx="0.18" cy="0.2" r="0.55">
+      <stop offset="0" stop-color="#7c5cff" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#7c5cff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowB" cx="0.9" cy="0.95" r="0.6">
+      <stop offset="0" stop-color="#1fd1c1" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#1fd1c1" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="title" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#b9b2ff"/>
+    </linearGradient>
+    <linearGradient id="bars" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ff6b7a"/>
+      <stop offset="0.5" stop-color="#b57cff"/>
+      <stop offset="1" stop-color="#3fd8c8"/>
+    </linearGradient>
+    <linearGradient id="mic" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#a48bff"/>
+      <stop offset="1" stop-color="#5a3df0"/>
+    </linearGradient>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M32 0H0V32" fill="none" stroke="#ffffff" stroke-opacity="0.035"/>
+    </pattern>
+    <filter id="soft" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="18"/>
+    </filter>
+    <style>
+      .t { font-family: "Inter", "Segoe UI", "Noto Sans", "Helvetica Neue", Arial, sans-serif; }
+      .bar { transform-origin: center; transform-box: fill-box; animation: pulse 1.4s ease-in-out infinite; }
+      @keyframes pulse { 0%,100% { transform: scaleY(0.45); } 50% { transform: scaleY(1); } }
+      .dot { animation: blink 1.24s ease-in-out infinite; }
+      @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+      @media (prefers-reduced-motion: reduce) { .bar, .dot { animation: none; } }
+    </style>
+  </defs>
+
+  <rect width="1280" height="420" rx="24" fill="url(#bg)"/>
+  <rect width="1280" height="420" rx="24" fill="url(#grid)"/>
+  <rect width="1280" height="420" rx="24" fill="url(#glowA)"/>
+  <rect width="1280" height="420" rx="24" fill="url(#glowB)"/>
+
+  <!-- Ícone: o mesmo microfone do app, em destaque -->
+  <g transform="translate(96 112)">
+    <circle cx="64" cy="64" r="70" fill="#7c5cff" opacity="0.55" filter="url(#soft)"/>
+    <rect x="0" y="0" width="128" height="128" rx="34" fill="url(#mic)"/>
+    <rect x="0.5" y="0.5" width="127" height="127" rx="33.5" fill="none" stroke="#ffffff" stroke-opacity="0.25"/>
+    <g transform="translate(16 16) scale(2)" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="18" y="6" width="12" height="22" rx="6" fill="#ffffff" stroke="none"/>
+      <path d="M12 22a12 12 0 0 0 24 0"/>
+      <path d="M24 34v7"/>
+      <path d="M17 41h14"/>
+    </g>
+  </g>
+
+  <!-- Título -->
+  <text x="268" y="196" class="t" font-size="104" font-weight="800" letter-spacing="-4" fill="url(#title)">surr</text>
+  <text x="272" y="246" class="t" font-size="30" font-weight="600" fill="#e8e6ff">Segure. Fale. Solte.</text>
+  <text x="272" y="284" class="t" font-size="20" fill="#a9a6c9">Ditado por voz push-to-talk, nativo para o KDE Plasma 6 no Wayland.</text>
+
+  <!-- Chips -->
+  <g class="t" font-size="15" font-weight="600">
+    <g transform="translate(272 314)">
+      <rect width="96" height="32" rx="16" fill="#ffffff" fill-opacity="0.08" stroke="#ffffff" stroke-opacity="0.14"/>
+      <text x="48" y="21" text-anchor="middle" fill="#d9d5ff">C++20</text>
+    </g>
+    <g transform="translate(378 314)">
+      <rect width="96" height="32" rx="16" fill="#ffffff" fill-opacity="0.08" stroke="#ffffff" stroke-opacity="0.14"/>
+      <text x="48" y="21" text-anchor="middle" fill="#d9d5ff">Qt 6 · KF6</text>
+    </g>
+    <g transform="translate(484 314)">
+      <rect width="118" height="32" rx="16" fill="#ffffff" fill-opacity="0.08" stroke="#ffffff" stroke-opacity="0.14"/>
+      <text x="59" y="21" text-anchor="middle" fill="#d9d5ff">Portais XDG</text>
+    </g>
+    <g transform="translate(612 314)">
+      <rect width="80" height="32" rx="16" fill="#ffffff" fill-opacity="0.08" stroke="#ffffff" stroke-opacity="0.14"/>
+      <text x="40" y="21" text-anchor="middle" fill="#d9d5ff">libei</text>
+    </g>
+    <g transform="translate(702 314)">
+      <rect width="100" height="32" rx="16" fill="#ffffff" fill-opacity="0.08" stroke="#ffffff" stroke-opacity="0.14"/>
+      <text x="50" y="21" text-anchor="middle" fill="#d9d5ff">Whisper</text>
+    </g>
+  </g>
+
+  <!-- A cápsula, como aparece na tela -->
+  <g transform="translate(888 150)">
+    <rect x="0" y="0" width="300" height="64" rx="32" fill="#212126" fill-opacity="0.95" stroke="#ffffff" stroke-opacity="0.12"/>
+    <circle class="dot" cx="40" cy="32" r="6" fill="#e05252"/>
+    <g fill="url(#bars)">
+      <rect class="bar" x="62"  y="20" width="5" height="24" rx="2.5" style="animation-delay:-0.10s"/>
+      <rect class="bar" x="72"  y="16" width="5" height="32" rx="2.5" style="animation-delay:-0.30s"/>
+      <rect class="bar" x="82"  y="12" width="5" height="40" rx="2.5" style="animation-delay:-0.55s"/>
+      <rect class="bar" x="92"  y="18" width="5" height="28" rx="2.5" style="animation-delay:-0.20s"/>
+      <rect class="bar" x="102" y="10" width="5" height="44" rx="2.5" style="animation-delay:-0.70s"/>
+      <rect class="bar" x="112" y="14" width="5" height="36" rx="2.5" style="animation-delay:-0.40s"/>
+      <rect class="bar" x="122" y="8"  width="5" height="48" rx="2.5" style="animation-delay:-0.95s"/>
+      <rect class="bar" x="132" y="14" width="5" height="36" rx="2.5" style="animation-delay:-0.15s"/>
+      <rect class="bar" x="142" y="10" width="5" height="44" rx="2.5" style="animation-delay:-0.60s"/>
+      <rect class="bar" x="152" y="18" width="5" height="28" rx="2.5" style="animation-delay:-0.35s"/>
+      <rect class="bar" x="162" y="12" width="5" height="40" rx="2.5" style="animation-delay:-0.85s"/>
+      <rect class="bar" x="172" y="16" width="5" height="32" rx="2.5" style="animation-delay:-0.25s"/>
+      <rect class="bar" x="182" y="20" width="5" height="24" rx="2.5" style="animation-delay:-0.50s"/>
+      <rect class="bar" x="192" y="22" width="5" height="20" rx="2.5" style="animation-delay:-0.05s"/>
+    </g>
+    <text x="250" y="38" class="t" font-size="17" text-anchor="middle" fill="#f2f2f4">3.3 s</text>
+  </g>
+
+  <!-- Tecla Pause -->
+  <g transform="translate(976 254)" class="t">
+    <rect x="0" y="6" width="124" height="58" rx="12" fill="#000000" fill-opacity="0.35"/>
+    <rect x="0" y="0" width="124" height="58" rx="12" fill="#2a2b45" stroke="#ffffff" stroke-opacity="0.18"/>
+    <text x="62" y="26" font-size="15" font-weight="700" text-anchor="middle" fill="#ffffff">Pause</text>
+    <text x="62" y="45" font-size="12" text-anchor="middle" fill="#a9a6c9">segure para falar</text>
+  </g>
+</svg>

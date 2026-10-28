@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 260" width="1280" height="260" role="img" aria-label="Fluxo: segure Pause, grava, solte, transcreve no Whisper, cola no cursor">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#14112e"/>
+      <stop offset="1" stop-color="#0c2633"/>
+    </linearGradient>
+    <!-- userSpaceOnUse: numa linha reta a caixa tem altura zero e o
+         gradiente em objectBoundingBox não é desenhado. -->
+    <linearGradient id="line" gradientUnits="userSpaceOnUse" x1="150" y1="0" x2="1130" y2="0">
+      <stop offset="0" stop-color="#ff6b7a"/>
+      <stop offset="0.5" stop-color="#b57cff"/>
+      <stop offset="1" stop-color="#3fd8c8"/>
+    </linearGradient>
+    <style>
+      .t { font-family: "Inter", "Segoe UI", "Noto Sans", "Helvetica Neue", Arial, sans-serif; }
+      .flow { stroke-dasharray: 6 10; animation: run 1.2s linear infinite; }
+      @keyframes run { to { stroke-dashoffset: -32; } }
+      @media (prefers-reduced-motion: reduce) { .flow { animation: none; } }
+    </style>
+  </defs>
+
+  <rect width="1280" height="260" rx="20" fill="url(#bg)"/>
+  <path class="flow" d="M150 104H1130" stroke="url(#line)" stroke-width="3" fill="none" stroke-linecap="round"/>
+
+  <g class="t" text-anchor="middle">
+    <!-- 1 -->
+    <g transform="translate(150 104)">
+      <circle r="44" fill="#221c44" stroke="#ff6b7a" stroke-width="2.5"/>
+      <rect x="-22" y="-14" width="44" height="28" rx="6" fill="none" stroke="#ffffff" stroke-width="2.5"/>
+      <text y="5" font-size="11" font-weight="700" fill="#ffffff">Pause</text>
+      <text y="78" font-size="19" font-weight="700" fill="#ffffff">Segure</text>
+      <text y="102" font-size="14" fill="#a9a6c9">atalho global do portal</text>
+    </g>
+    <!-- 2 -->
+    <g transform="translate(395 104)">
+      <circle r="44" fill="#221c44" stroke="#e37bb0" stroke-width="2.5"/>
+      <g fill="#ffffff">
+        <rect x="-19" y="-6" width="5" height="12" rx="2.5"/>
+        <rect x="-10" y="-14" width="5" height="28" rx="2.5"/>
+        <rect x="-1" y="-20" width="5" height="40" rx="2.5"/>
+        <rect x="8" y="-12" width="5" height="24" rx="2.5"/>
+        <rect x="17" y="-5" width="5" height="10" rx="2.5"/>
+      </g>
+      <text y="78" font-size="19" font-weight="700" fill="#ffffff">Fale</text>
+      <text y="102" font-size="14" fill="#a9a6c9">PipeWire → WAV</text>
+    </g>
+    <!-- 3 -->
+    <g transform="translate(640 104)">
+      <circle r="44" fill="#221c44" stroke="#b57cff" stroke-width="2.5"/>
+      <path d="M0 -18V14M-12 2L0 14L12 2" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" transform="rotate(180)"/>
+      <text y="78" font-size="19" font-weight="700" fill="#ffffff">Solte</text>
+      <text y="102" font-size="14" fill="#a9a6c9">o release encerra a gravação</text>
+    </g>
+    <!-- 4 -->
+    <g transform="translate(885 104)">
+      <circle r="44" fill="#221c44" stroke="#7aa8ff" stroke-width="2.5"/>
+      <path d="M-18 8a10 10 0 0 1 2-19a14 14 0 0 1 27-2a10 10 0 0 1 7 21z" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linejoin="round"/>
+      <text y="78" font-size="19" font-weight="700" fill="#ffffff">Transcreve</text>
+      <text y="102" font-size="14" fill="#a9a6c9">Groq ou Whisper próprio</text>
+    </g>
+    <!-- 5 -->
+    <g transform="translate(1130 104)">
+      <circle r="44" fill="#221c44" stroke="#3fd8c8" stroke-width="2.5"/>
+      <rect x="-14" y="-17" width="28" height="34" rx="4" fill="none" stroke="#ffffff" stroke-width="2.5"/>
+      <rect x="-7" y="-21" width="14" height="8" rx="2" fill="#ffffff"/>
+      <path d="M-7 2l5 5l10-10" fill="none" stroke="#3fd8c8" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      <text y="78" font-size="19" font-weight="700" fill="#ffffff">Cola no cursor</text>
+      <text y="102" font-size="14" fill="#a9a6c9">área de transferência + Ctrl+V</text>
+    </g>
+  </g>
+</svg>
