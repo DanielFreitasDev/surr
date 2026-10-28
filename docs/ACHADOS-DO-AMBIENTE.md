@@ -360,5 +360,31 @@ surr_teste_bt_input:capture_MONO
 # media.class=Stream/Input/Audio, client.api=pipewire-pulse
 ```
 
-Não medido, por falta de fone: a troca A2DP→HFP de verdade e quanto do começo
-da fala ela come.
+### Com um fone de verdade (Galaxy Buds2 Pro, no mesmo dia)
+
+O nó é o mesmo do simulado: `bluez_input.40:35:E6:27:92:B3` (`Audio/Source`),
+alimentado por `bluez_capture_internal.*`. O backend nativo não o lista; o
+PulseAudio lista como "Buds2 Pro de Daniel", 48 kHz mono.
+
+Gravando 3 s dele com o `surr-probe-audio`, e lendo o perfil da placa a cada
+50 ms com `pactl list cards`:
+
+```
+perfil: a2dp-sink → headset-head-unit (durante a gravação) → a2dp-sink (~2,3 s após o fim)
+
+WAV, rms a cada 100 ms:
+    0–500 ms  zeros exatos, depois um resíduo baixo (rms 30–150)
+  600–1000 ms  zeros exatos — a troca de perfil
+     1100 ms  primeira amostra do microfone (rms 574) e daí em diante
+```
+
+**~1,1 s de zeros exatos no começo de cada ditado.** Um microfone USB, no
+mesmo teste, tem só ~210 ms de zeros (a abertura do fluxo) e nenhum zero exato
+no resto do arquivo — 3528 de 50176 amostras, todas no início. Daí o "vivo"
+passar a ser a primeira amostra diferente de zero, com teto de 2,5 s:
+
+```
+                 "Captura viva" após o start()
+Buds2 Pro            996 ms
+USB (Samsung)        378 ms   (inclui a subida da sonda)
+```

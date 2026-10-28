@@ -342,10 +342,10 @@ tem som de ligação telefônica. Quando o surr começa a gravar, o sistema troc
 o fone para esse modo sozinho, e volta ao modo de música (A2DP) uns segundos
 depois de você soltar a tecla.
 
-A troca leva pelo menos meio segundo: espere um instante depois de apertar
-`Pause` antes de começar a falar. Se o fone não aparecer na lista de
-microfones, confira se ele está conectado em **Configurações do Sistema →
-Bluetooth**.
+A troca leva cerca de **1 segundo** (medido num Galaxy Buds2 Pro). Durante
+esse tempo a cápsula mostra **Preparando…**; comece a falar quando ela passar
+para a onda de gravação. Se o fone não aparecer na lista de microfones,
+confira se ele está conectado em **Configurações do Sistema → Bluetooth**.
 
 </details>
 

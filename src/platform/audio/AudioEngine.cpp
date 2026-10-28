@@ -21,6 +21,11 @@ constexpr int kLevelIntervalMs = 50;
 /// com voz normal — medido no aplicativo anterior.
 constexpr double kFloorDb = -55.0;
 
+/// Teto da espera por áudio de verdade (ver onReadyRead). O fone Bluetooth
+/// medido entregou zeros por ~1,1 s; sem o teto, um microfone mudo de
+/// verdade deixaria o ciclo em "Preparando" para sempre.
+constexpr int kLiveFallbackMs = 2500;
+
 PcmConverter::SampleType toSampleType(QAudioFormat::SampleFormat f)
 {
     switch (f) {
@@ -46,6 +51,7 @@ struct AudioEngine::Private {
     QAudioSource *source = nullptr;
     QIODevice *stream = nullptr;
     QTimer *levelTimer = nullptr;
+    QTimer *liveFallback = nullptr;
 
     std::unique_ptr<PcmConverter> converter;
     WavWriter writer;
@@ -60,6 +66,24 @@ AudioEngine::AudioEngine(QObject *parent) : QObject(parent), d(std::make_unique<
     d->levelTimer = new QTimer(this);
     d->levelTimer->setInterval(kLevelIntervalMs);
     connect(d->levelTimer, &QTimer::timeout, this, &AudioEngine::emitLevel);
+
+    d->liveFallback = new QTimer(this);
+    d->liveFallback->setSingleShot(true);
+    d->liveFallback->setInterval(kLiveFallbackMs);
+    connect(d->liveFallback, &QTimer::timeout, this, [this] {
+        if (d->source && !d->live) {
+            qCInfo(SURR_AUDIO) << "só silêncio digital após" << kLiveFallbackMs
+                               << "ms; seguindo mesmo assim";
+            markLive();
+        }
+    });
+}
+
+void AudioEngine::markLive()
+{
+    d->live = true;
+    d->liveFallback->stop();
+    Q_EMIT captureStarted(d->runId);
 }
 
 AudioEngine::~AudioEngine() { teardown(); }
@@ -137,6 +161,7 @@ void AudioEngine::start(quint64 runId, const QString &deviceId, const QString &w
     }
     connect(d->stream, &QIODevice::readyRead, this, &AudioEngine::onReadyRead);
     d->levelTimer->start();
+    d->liveFallback->start();
 
     qCDebug(SURR_AUDIO) << "captura iniciada, ciclo" << runId;
 }
@@ -164,13 +189,19 @@ void AudioEngine::onReadyRead()
         return;
     }
 
-    if (!d->live) {
-        d->live = true;
-        Q_EMIT captureStarted(d->runId);
-    }
-
     const QByteArray pcm = d->converter->convert(raw);
     d->intervalPeak = std::max(d->intervalPeak, d->converter->lastPeak());
+
+    // "Vivo" é a primeira amostra diferente de zero, não o primeiro buffer.
+    // O fone Bluetooth começa em A2DP, sem microfone, e o WirePlumber só o
+    // troca para HFP depois que a gravação abre: medido com um Galaxy Buds2
+    // Pro, ~1,1 s de zeros exatos antes da primeira amostra do microfone.
+    // Marcando no primeiro buffer, a cápsula dizia "gravando" e a fala desse
+    // trecho se perdia. Microfone com fio nunca entrega zero exato — o ruído
+    // de fundo basta —, então para eles nada muda.
+    if (!d->live && d->converter->lastPeak() > 0.0f) {
+        markLive();
+    }
 
     if (!pcm.isEmpty() && !d->writer.write(pcm)) {
         fail(QStringLiteral("Falha ao gravar o áudio em disco."));
@@ -220,6 +251,7 @@ void AudioEngine::abort(quint64 runId)
 void AudioEngine::teardown()
 {
     d->levelTimer->stop();
+    d->liveFallback->stop();
     if (d->stream) {
         disconnect(d->stream, nullptr, this, nullptr);
         d->stream = nullptr;

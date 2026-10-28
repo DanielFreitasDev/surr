@@ -51,6 +51,7 @@ private Q_SLOTS:
 
 private:
     void teardown();
+    void markLive();
     void fail(const QString &message);
 
     struct Private;
