@@ -367,11 +367,20 @@ fone simulado, a gravação sai dele por um `Stream/Input/Audio` (o que o
 `autoswitch-bluetooth-profile.lua` vigia), e o `--settings` aberto pela
 bandeja herda `QT_AUDIO_BACKEND=pulseaudio`.
 
-Não verificado, por falta de fone: a troca A2DP→HFP de verdade e quanto do
-começo da fala ela come.
+Depois, com um Galaxy Buds2 Pro de verdade: o backend nativo de fato não o
+lista, o PulseAudio lista, e a troca para HFP acontece sozinha. Mas cada ditado
+começa com **~1,1 s de zeros exatos** (a troca de perfil), e o `AudioEngine`
+dava a captura por viva no primeiro buffer — a cápsula dizia "gravando" e a
+fala desse trecho se perdia. O "vivo" passou a ser a primeira amostra
+diferente de zero, com teto de 2,5 s (`kLiveFallbackMs`) para um microfone mudo
+não prender o ciclo em "Preparando". Microfone com fio também abre com ~210 ms
+de zeros e nenhum depois, então ele só ganha 0,2 s de "Preparando" — que é o
+trecho em que nada era captado mesmo.
 
 **Por que importa:** Não há erro em lugar nenhum — o dispositivo
-simplesmente não existe para o app. E não aparece em nenhuma máquina sem fone
+simplesmente não existe para o app. E "o primeiro buffer chegou" não quer dizer
+"o microfone está ouvindo": zero exato é a assinatura de quem ainda não
+entrega áudio, porque microfone de verdade sempre tem ruído. E não aparece em nenhuma máquina sem fone
 Bluetooth, como as duas em que o surr foi desenvolvido. Para imitar um
 dispositivo que não se tem, monte o nó com as mesmas propriedades que o
 WirePlumber monta (o script está em `/usr/share/wireplumber/scripts/`) e
